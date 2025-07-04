@@ -1,50 +1,125 @@
-# Welcome to your Expo app 👋
+# AI Agent Cross-Chain Asset Management - Mobile Frontend
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+## Overview
 
-## Get started
+This React Native application provides a mobile interface for managing cross-chain assets with AI-powered trading recommendations. Built for ETHGlobal Hackathon, it integrates with Fetch.ai uAgents, Chainlink, and LayerZero technologies.
 
-1. Install dependencies
+## Key Features
 
-   ```bash
-   npm install
-   ```
+### 🤖 AI Agent Integration
 
-2. Start the app
+- Real-time AI-generated trading intents
+- Market data analysis and news monitoring
+- Confidence-based recommendations
+- Configurable auto-approval thresholds
 
-   ```bash
-   npx expo start
-   ```
+### 💰 Portfolio Management
 
-In the output, you'll find options to open the app in a
+- Multi-chain asset overview
+- Real-time portfolio values
+- Cross-chain asset distribution
+- Performance analytics
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 🔗 Cross-Chain Functionality
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- Support for Ethereum, Polygon, Arbitrum, Optimism
+- LayerZero-powered cross-chain transfers
+- Bridge recommendations
+- Gas optimization insights
 
-## Get a fresh project
+### 📱 User Experience
 
-When you're ready, run:
+- Intuitive wallet connection flow
+- Intent approval/rejection interface
+- Transaction history tracking
+- Comprehensive settings management
 
-```bash
-npm run reset-project
+## Architecture
+
+### State Management
+
+- **React Context API** for global app state
+- **useReducer** for complex state transitions
+- Separate contexts for wallet and app state
+
+### Key Components
+
+- **AppContext**: Manages intents, transactions, portfolio data
+- **WalletContext**: Handles wallet connection and chain management
+- **Screen Components**: Dashboard, Intents, Portfolio, Transactions, Settings
+
+### Data Flow
+
+1. AI agent monitors market conditions
+2. Generates trading intents with confidence scores
+3. User receives notifications for review
+4. Approved intents execute via LayerZero
+5. Real-time tracking of cross-chain transactions
+
+## Technical Implementation
+
+### Core Technologies
+
+- **React Native** with TypeScript
+- **Expo Router** for navigation
+- **WalletConnect** for wallet integration
+- **Wagmi/Viem** for Web3 interactions
+
+### Mock Data & Simulation
+
+The current implementation includes:
+
+- Simulated AI agent behavior
+- Mock portfolio data across multiple chains
+- Fake transaction history
+- Demo wallet connection flow
+
+### File Structure
+
+```
+app/
+├── (tabs)/
+│   ├── index.tsx          # Dashboard screen
+│   ├── intents.tsx        # AI intents management
+│   ├── portfolio.tsx      # Portfolio overview
+│   ├── transactions.tsx   # Transaction history
+│   └── settings.tsx       # App settings
+├── _layout.tsx            # Root layout with providers
+└── +not-found.tsx         # 404 page
+
+contexts/
+├── AppContext.tsx         # Global app state
+└── WalletContext.tsx      # Wallet management
+
+components/                # Reusable UI components
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Getting Started
 
-## Learn more
+### Prerequisites
 
-To learn more about developing your project with Expo, look at the following resources:
+- Node.js 20+
+- Expo CLI
+- React Native development environment
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Installation
 
-## Join the community
+```bash
+npm install
+```
 
-Join our community of developers creating universal apps.
+### Development
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+# Start development server
+npm start
+
+# iOS simulator
+npm run ios
+
+# Android emulator
+npm run android
+
+# Web browser
+npm run web
+```

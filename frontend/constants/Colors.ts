@@ -1,26 +1,40 @@
 /**
  * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Enhanced for better contrast and accessibility.
  */
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorLight = "#0066CC";
+const tintColorDark = "#fff";
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: "#1A1A1A", // Darker text for better contrast
+    background: "#FFFFFF",
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: "#4A5568", // Darker icons for better visibility
+    tabIconDefault: "#4A5568",
     tabIconSelected: tintColorLight,
+    // Additional colors for better contrast
+    cardBackground: "#F7FAFC",
+    border: "#E2E8F0",
+    muted: "#64748B",
+    success: "#059669",
+    warning: "#D97706",
+    error: "#DC2626",
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: "#FFFFFF",
+    background: "#0F172A", // Darker background
     tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
+    icon: "#CBD5E1",
+    tabIconDefault: "#94A3B8",
     tabIconSelected: tintColorDark,
+    // Additional colors for dark mode
+    cardBackground: "#1E293B",
+    border: "#334155",
+    muted: "#94A3B8",
+    success: "#10B981",
+    warning: "#F59E0B",
+    error: "#EF4444",
   },
 };
