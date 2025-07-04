@@ -1,3 +1,6 @@
+import { APP_CONFIG } from "@/src/constants/config";
+import { AIAgentService, TransactionService } from "@/src/services";
+import { AppAction, AppState } from "@/src/types";
 import React, {
   createContext,
   ReactNode,
@@ -5,90 +8,6 @@ import React, {
   useEffect,
   useReducer,
 } from "react";
-
-// Types
-export interface Intent {
-  id: string;
-  type: "swap" | "bridge" | "stake";
-  fromToken: string;
-  toToken: string;
-  fromChain: string;
-  toChain: string;
-  amount: string;
-  estimatedGas: string;
-  confidence: number;
-  reasoning: string;
-  timestamp: number;
-  status: "pending" | "approved" | "rejected" | "executed";
-}
-
-export interface Transaction {
-  id: string;
-  hash: string;
-  type: "swap" | "bridge" | "stake";
-  fromToken: string;
-  toToken: string;
-  fromChain: string;
-  toChain: string;
-  amount: string;
-  status: "pending" | "confirmed" | "failed";
-  timestamp: number;
-  gasUsed?: string;
-}
-
-export interface Asset {
-  symbol: string;
-  name: string;
-  balance: string;
-  value: string;
-  chain: string;
-  contractAddress?: string;
-}
-
-export interface AgentStatus {
-  isActive: boolean;
-  lastUpdate: number;
-  marketDataSources: string[];
-  newsSourcesActive: number;
-  confidenceLevel: number;
-}
-
-interface AppState {
-  // Wallet
-  walletConnected: boolean;
-  walletAddress: string | null;
-  connectedChain: string | null;
-
-  // Agent
-  agentStatus: AgentStatus;
-  intents: Intent[];
-
-  // Portfolio
-  assets: Asset[];
-  totalPortfolioValue: string;
-
-  // Transactions
-  transactions: Transaction[];
-
-  // UI
-  loading: boolean;
-  error: string | null;
-}
-
-type AppAction =
-  | { type: "CONNECT_WALLET"; payload: { address: string; chain: string } }
-  | { type: "DISCONNECT_WALLET" }
-  | { type: "SET_AGENT_STATUS"; payload: AgentStatus }
-  | { type: "ADD_INTENT"; payload: Intent }
-  | { type: "UPDATE_INTENT"; payload: { id: string; status: Intent["status"] } }
-  | { type: "SET_ASSETS"; payload: Asset[] }
-  | { type: "ADD_TRANSACTION"; payload: Transaction }
-  | {
-      type: "UPDATE_TRANSACTION";
-      payload: { id: string; status: Transaction["status"]; hash?: string };
-    }
-  | { type: "SET_LOADING"; payload: boolean }
-  | { type: "SET_ERROR"; payload: string | null };
 
 const initialState: AppState = {
   walletConnected: false,
@@ -293,24 +212,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Simulate transaction creation
     const intent = state.intents.find((i) => i.id === intentId);
     if (intent) {
-      const transaction: Transaction = {
-        id: `tx_${Date.now()}`,
-        hash: `0x${Math.random().toString(16).substr(2, 8)}...${Math.random()
-          .toString(16)
-          .substr(2, 8)}`,
-        type: intent.type,
-        fromToken: intent.fromToken,
-        toToken: intent.toToken,
-        fromChain: intent.fromChain,
-        toChain: intent.toChain,
-        amount: intent.amount,
-        status: "pending",
-        timestamp: Date.now(),
-      };
-
+      const transaction =
+        TransactionService.createTransactionFromIntent(intent);
       dispatch({ type: "ADD_TRANSACTION", payload: transaction });
 
-      // Simulate transaction confirmation after 3 seconds
+      // Simulate transaction confirmation
       setTimeout(() => {
         dispatch({
           type: "UPDATE_TRANSACTION",
@@ -320,7 +226,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           type: "UPDATE_INTENT",
           payload: { id: intentId, status: "executed" },
         });
-      }, 3000);
+      }, APP_CONFIG.TRANSACTION_CONFIRMATION_DELAY);
     }
   };
 
@@ -335,28 +241,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const interval = setInterval(() => {
       if (Math.random() > 0.7) {
-        // 30% chance every 30 seconds
-        const newIntent: Intent = {
-          id: `intent_${Date.now()}`,
-          type: ["swap", "bridge", "stake"][
-            Math.floor(Math.random() * 3)
-          ] as Intent["type"],
-          fromToken: "ETH",
-          toToken: "USDC",
-          fromChain: "Ethereum",
-          toChain: "Ethereum",
-          amount: (Math.random() * 2).toFixed(3),
-          estimatedGas: (Math.random() * 0.01).toFixed(4),
-          confidence: 0.7 + Math.random() * 0.25,
-          reasoning:
-            "AI detected profitable opportunity based on market analysis.",
-          timestamp: Date.now(),
-          status: "pending",
-        };
-
+        // 30% chance
+        const newIntent = AIAgentService.generateIntent();
         dispatch({ type: "ADD_INTENT", payload: newIntent });
       }
-    }, 30000);
+    }, APP_CONFIG.INTENT_GENERATION_INTERVAL);
 
     return () => clearInterval(interval);
   }, []);
