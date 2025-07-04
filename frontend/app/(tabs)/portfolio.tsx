@@ -1,7 +1,9 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { AppColors, CommonStyles } from "@/constants/AppStyles";
-import { useApp } from "@/contexts/AppContext";
+import { usePortfolioData } from "@/src/hooks";
+import { Asset } from "@/src/types";
+import { getChainIcon } from "@/src/utils/helpers";
 import {
   ScrollView,
   StyleSheet,
@@ -11,39 +13,11 @@ import {
 } from "react-native";
 
 export default function PortfolioScreen() {
-  const { state } = useApp();
+  const { totalPortfolioValue, getChainValues, getPortfolioStats } =
+    usePortfolioData();
 
-  const getChainIcon = (chain: string) => {
-    switch (chain.toLowerCase()) {
-      case "ethereum":
-        return "🔷";
-      case "polygon":
-        return "🟣";
-      case "arbitrum":
-        return "🔵";
-      case "optimism":
-        return "🔴";
-      default:
-        return "⚡";
-    }
-  };
-
-  // Group assets by chain
-  const assetsByChain = state.assets.reduce((acc, asset) => {
-    if (!acc[asset.chain]) {
-      acc[asset.chain] = [];
-    }
-    acc[asset.chain].push(asset);
-    return acc;
-  }, {} as Record<string, typeof state.assets>);
-
-  // Calculate chain values
-  const chainValues = Object.entries(assetsByChain).map(([chain, assets]) => {
-    const totalValue = assets.reduce((sum, asset) => {
-      return sum + parseFloat(asset.value.replace("$", "").replace(",", ""));
-    }, 0);
-    return { chain, totalValue, assets };
-  });
+  const chainValues = getChainValues();
+  const portfolioStats = getPortfolioStats();
 
   return (
     <ThemedView style={styles.container}>
@@ -63,7 +37,7 @@ export default function PortfolioScreen() {
         <View style={styles.section}>
           <View style={styles.totalCard}>
             <ThemedText type="title" style={styles.totalValue}>
-              {state.totalPortfolioValue}
+              {totalPortfolioValue}
             </ThemedText>
             <ThemedText style={styles.totalLabel}>
               Total Portfolio Value
@@ -72,13 +46,13 @@ export default function PortfolioScreen() {
             <View style={styles.portfolioStats}>
               <View style={styles.statItem}>
                 <ThemedText style={styles.statValue}>
-                  {state.assets.length}
+                  {portfolioStats.totalAssets}
                 </ThemedText>
                 <ThemedText style={styles.statLabel}>Assets</ThemedText>
               </View>
               <View style={styles.statItem}>
                 <ThemedText style={styles.statValue}>
-                  {Object.keys(assetsByChain).length}
+                  {portfolioStats.totalChains}
                 </ThemedText>
                 <ThemedText style={styles.statLabel}>Chains</ThemedText>
               </View>
@@ -116,9 +90,7 @@ export default function PortfolioScreen() {
                     {(
                       (totalValue /
                         parseFloat(
-                          state.totalPortfolioValue
-                            .replace("$", "")
-                            .replace(",", "")
+                          totalPortfolioValue.replace("$", "").replace(",", "")
                         )) *
                       100
                     ).toFixed(1)}
@@ -128,7 +100,7 @@ export default function PortfolioScreen() {
               </View>
 
               <View style={styles.chainAssets}>
-                {assets.map((asset) => (
+                {assets.map((asset: Asset) => (
                   <View
                     key={`${asset.symbol}-${asset.chain}`}
                     style={styles.assetRow}

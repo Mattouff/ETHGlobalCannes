@@ -3,6 +3,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { AppColors, CommonStyles } from "@/constants/AppStyles";
 import { useApp } from "@/contexts/AppContext";
 import { useWallet } from "@/contexts/WalletContext";
+import { formatAddress } from "@/src/utils/helpers";
 import { useState } from "react";
 import {
   Alert,
@@ -37,10 +38,6 @@ export default function SettingsScreen() {
         },
       ]
     );
-  };
-
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
   return (

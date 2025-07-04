@@ -1,7 +1,14 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { AppColors, CommonStyles } from "@/constants/AppStyles";
-import { useApp } from "@/contexts/AppContext";
+import { useTransactionActions } from "@/src/hooks";
+import {
+  formatAddress,
+  formatTimeAgo,
+  getChainIcon,
+  getStatusColor,
+  getTypeIcon,
+} from "@/src/utils/helpers";
 import { useState } from "react";
 import {
   ScrollView,
@@ -12,72 +19,14 @@ import {
 } from "react-native";
 
 export default function TransactionsScreen() {
-  const { state } = useApp();
+  const { getFilteredTransactions, getTransactionStats } =
+    useTransactionActions();
   const [filter, setFilter] = useState<"all" | "swap" | "bridge" | "stake">(
     "all"
   );
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "swap":
-        return "🔄";
-      case "bridge":
-        return "🌉";
-      case "stake":
-        return "💎";
-      default:
-        return "⚡";
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "#F59E0B";
-      case "confirmed":
-        return "#10B981";
-      case "failed":
-        return "#EF4444";
-      default:
-        return "#6B7280";
-    }
-  };
-
-  const getChainIcon = (chain: string) => {
-    switch (chain.toLowerCase()) {
-      case "ethereum":
-        return "🔷";
-      case "polygon":
-        return "🟣";
-      case "arbitrum":
-        return "🔵";
-      case "optimism":
-        return "🔴";
-      default:
-        return "⚡";
-    }
-  };
-
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-
-    if (diff < 60000) return "Just now";
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-
-    return date.toLocaleDateString();
-  };
-
-  const truncateHash = (hash: string) => {
-    return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
-  };
-
-  const filteredTransactions =
-    filter === "all"
-      ? state.transactions
-      : state.transactions.filter((tx) => tx.type === filter);
+  const filteredTransactions = getFilteredTransactions(filter);
+  const transactionStats = getTransactionStats();
 
   return (
     <ThemedView style={styles.container}>
@@ -127,7 +76,7 @@ export default function TransactionsScreen() {
           <View style={styles.statsCard}>
             <View style={styles.statItem}>
               <ThemedText style={styles.statValue}>
-                {state.transactions.length}
+                {transactionStats.total}
               </ThemedText>
               <ThemedText style={styles.statLabel}>
                 Total Transactions
@@ -135,19 +84,13 @@ export default function TransactionsScreen() {
             </View>
             <View style={styles.statItem}>
               <ThemedText style={styles.statValue}>
-                {
-                  state.transactions.filter((tx) => tx.status === "confirmed")
-                    .length
-                }
+                {transactionStats.confirmed}
               </ThemedText>
               <ThemedText style={styles.statLabel}>Confirmed</ThemedText>
             </View>
             <View style={styles.statItem}>
               <ThemedText style={styles.statValue}>
-                {
-                  state.transactions.filter((tx) => tx.status === "pending")
-                    .length
-                }
+                {transactionStats.pending}
               </ThemedText>
               <ThemedText style={styles.statLabel}>Pending</ThemedText>
             </View>
@@ -193,7 +136,7 @@ export default function TransactionsScreen() {
                         </View>
                       </View>
                       <ThemedText style={styles.transactionTime}>
-                        {formatTime(transaction.timestamp)}
+                        {formatTimeAgo(transaction.timestamp)}
                       </ThemedText>
                     </View>
                   </View>
@@ -240,7 +183,7 @@ export default function TransactionsScreen() {
                       <ThemedText style={styles.infoLabel}>Hash:</ThemedText>
                       <TouchableOpacity>
                         <ThemedText style={styles.hashText}>
-                          {truncateHash(transaction.hash)}
+                          {formatAddress(transaction.hash)}
                         </ThemedText>
                       </TouchableOpacity>
                     </View>
