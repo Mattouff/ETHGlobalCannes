@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { AppColors, CommonStyles } from "@/constants/AppStyles";
 import { useApp } from "@/contexts/AppContext";
 import { useWallet } from "@/contexts/WalletContext";
 import { useEffect } from "react";
@@ -277,6 +278,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: AppColors.screenBackground,
   },
   connectContainer: {
     flex: 1,
@@ -285,16 +287,18 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
+    color: AppColors.textPrimary,
     textAlign: "center",
     marginBottom: 16,
   },
   subtitle: {
+    color: AppColors.textSecondary,
     textAlign: "center",
     marginBottom: 32,
-    opacity: 0.7,
+    lineHeight: 20,
   },
   connectButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: AppColors.primary,
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 12,
@@ -304,7 +308,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   connectButtonText: {
-    color: "white",
+    color: AppColors.textInverse,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -320,6 +324,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   featureText: {
+    color: AppColors.textPrimary,
     fontSize: 16,
   },
   scrollView: {
@@ -334,49 +339,40 @@ const styles = StyleSheet.create({
   },
   address: {
     fontSize: 14,
-    color: "#666",
+    color: AppColors.textSecondary,
     marginTop: 4,
   },
   disconnectButton: {
-    backgroundColor: "#EF4444",
+    backgroundColor: AppColors.error,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   disconnectButtonText: {
-    color: "white",
+    color: AppColors.textInverse,
     fontSize: 14,
     fontWeight: "600",
   },
   section: {
-    padding: 24,
-    paddingTop: 0,
+    ...CommonStyles.section,
   },
   sectionTitle: {
-    marginBottom: 16,
+    ...CommonStyles.sectionTitle,
   },
   portfolioCard: {
-    backgroundColor: "#FFFFFF",
-    padding: 24,
-    borderRadius: 16,
-    alignItems: "center",
+    ...CommonStyles.card,
+    backgroundColor: AppColors.cardBackground,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderColor: AppColors.border,
+    padding: 24,
+    alignItems: "center",
   },
   portfolioValue: {
-    color: "#059669",
+    color: AppColors.success,
     marginBottom: 8,
   },
   portfolioLabel: {
-    color: "#4A5568",
+    color: AppColors.textSecondary,
     marginBottom: 16,
   },
   portfolioStats: {
@@ -389,27 +385,18 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#1A202C",
+    color: AppColors.textPrimary,
   },
   statLabel: {
     fontSize: 12,
-    color: "#4A5568",
+    color: AppColors.textMuted,
     marginTop: 4,
   },
   agentCard: {
-    backgroundColor: "#FFFFFF",
-    padding: 20,
-    borderRadius: 16,
+    ...CommonStyles.card,
+    backgroundColor: AppColors.cardBackground,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderColor: AppColors.border,
   },
   agentHeader: {
     flexDirection: "row",
@@ -429,11 +416,11 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontWeight: "600",
-    color: "#1A202C",
+    color: AppColors.textPrimary,
   },
   confidenceText: {
     fontSize: 14,
-    color: "#059669",
+    color: AppColors.success,
     fontWeight: "600",
   },
   agentMetrics: {
@@ -446,28 +433,20 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1A202C",
+    color: AppColors.textPrimary,
   },
   metricLabel: {
     fontSize: 12,
-    color: "#4A5568",
+    color: AppColors.textMuted,
     marginTop: 4,
   },
   intentCard: {
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    ...CommonStyles.card,
+    backgroundColor: AppColors.cardBackground,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
+    borderColor: AppColors.border,
+    padding: 16,
+    marginBottom: 12,
   },
   intentHeader: {
     flexDirection: "row",
@@ -476,13 +455,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   intentType: {
-    backgroundColor: "#0066CC",
+    backgroundColor: AppColors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
   intentTypeText: {
-    color: "white",
+    color: AppColors.textInverse,
     fontSize: 10,
     fontWeight: "600",
   },
@@ -492,19 +471,21 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   intentStatusText: {
-    color: "white",
+    color: AppColors.textInverse,
     fontSize: 10,
     fontWeight: "600",
   },
   intentDetails: {
     fontSize: 16,
     fontWeight: "600",
+    color: AppColors.textPrimary,
     marginBottom: 8,
   },
   intentReasoning: {
     fontSize: 14,
-    opacity: 0.7,
+    color: AppColors.textSecondary,
     marginBottom: 12,
+    lineHeight: 18,
   },
   intentFooter: {
     flexDirection: "row",
@@ -513,12 +494,12 @@ const styles = StyleSheet.create({
   },
   intentConfidence: {
     fontSize: 12,
-    color: "#10B981",
+    color: AppColors.success,
     fontWeight: "600",
   },
   intentTime: {
     fontSize: 12,
-    opacity: 0.7,
+    color: AppColors.textMuted,
   },
   quickActions: {
     flexDirection: "row",
@@ -527,7 +508,9 @@ const styles = StyleSheet.create({
   actionButton: {
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: AppColors.cardBackground,
+    borderWidth: 1,
+    borderColor: AppColors.border,
     borderRadius: 12,
     minWidth: 80,
   },
@@ -538,5 +521,6 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 12,
     textAlign: "center",
+    color: AppColors.textPrimary,
   },
 });
