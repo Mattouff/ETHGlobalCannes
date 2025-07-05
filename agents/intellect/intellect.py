@@ -3,6 +3,7 @@ from uagents import Agent, Context, Model, Protocol
 from uagents.setup import fund_agent_if_low
 import json
 import uuid
+from datetime import datetime
 
 
 class TextPrompt(Model):
@@ -49,9 +50,9 @@ class PopularIntentsResponse(Model):
 # Configuration de l'agent avec endpoint
 agent = Agent(
     name="intellect",
-    port=8001,
+    port=8000,
     seed="intentfi-agent-seed-phrase",
-    endpoint=["http://localhost:8001/submit"],
+    endpoint=["http://localhost:8000/submit"],
 )
 
 print(f"Agent address: {agent.address}")
@@ -336,7 +337,7 @@ async def health_check(ctx: Context) -> HealthResponse:
         status="healthy",
         agent="IntentFi Recommender",
         address=agent.address,
-        timestamp=str(ctx.timestamp) if hasattr(ctx, 'timestamp') else "N/A"
+        timestamp=datetime.now().isoformat()
     )
 
 
@@ -406,9 +407,9 @@ class Location(Model):
 async def send_message(ctx: Context):
     ctx.logger.info("🚀 IntentFi Agent démarré!")
     ctx.logger.info(f"📍 Endpoints disponibles:")
-    ctx.logger.info(f"   GET  http://localhost:8001/health")
-    ctx.logger.info(f"   POST http://localhost:8001/recommend")
-    ctx.logger.info(f"   GET  http://localhost:8001/intents/popular")
+    ctx.logger.info(f"   GET  http://localhost:8000/health")
+    ctx.logger.info(f"   POST http://localhost:8000/recommend")
+    ctx.logger.info(f"   GET  http://localhost:8000/intents/popular")
     
     # Test de connectivité avec l'AI agent
     ctx.logger.info(f"🔍 Test de connectivité avec AI Agent: {AI_AGENT_ADDRESS}")

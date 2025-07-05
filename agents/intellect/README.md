@@ -5,7 +5,59 @@
 - **Récupération automatique** : Surveillance continue toutes les 3 secondes avec filtrage
 - **"No new information"** : Retourne ce message s'il n'y a pas de nouvelles actualités
 - **Logging intelligent** : Journalis### 📰 Agent News
-L'agent fournit un logging détaillé avec cache anti-doublons :
+L'agent fournit### 📰 Agent News
+L'agent fournit un logging détaillé via API REST :
+```bash
+🚀 News REST API démarré - Agent news_agent
+📍 Adresse: agent1qvk...
+🌐 API REST disponible sur http://localhost:8001
+📋 Endpoints: POST /news, GET /health
+
+🌐 API Call - Requête news via REST
+🔍 Query: bitcoin regulation, Type: crypto
+✅ 5 articles retournés via REST API
+```
+
+#### 📄 Logs JSON automatiques (`news_logs.json`)
+Quand vous utilisez `news_launcher.py`, tous les événements importants sont automatiquement sauvegardés dans `news_logs.json` :
+
+**Types d'événements capturés :**
+- `launcher_startup` : Démarrage du launcher
+- `agent_startup` : Démarrage du News Agent
+- `api_ready` : API REST prête
+- `new_articles_found` : Nouvelles actualités trouvées (avec nombre)
+- `no_new_news` : Aucune nouvelle actualité
+- `api_request` : Requête API REST reçue
+- `error` : Erreurs système
+- `shutdown_request` : Arrêt demandé
+- `shutdown_complete` : Arrêt terminé
+
+**Exemple de structure JSON :**
+```json
+[
+  {
+    "timestamp": "2025-07-05T13:11:44.423929",
+    "event_type": "new_articles_found",
+    "message": "3 nouvelles actualités trouvées",
+    "data": {
+      "count": 3
+    },
+    "agent": "news_launcher"
+  }
+]
+```
+
+**Monitoring des logs :**
+```bash
+# Voir les logs en temps réel
+tail -f news_logs.json
+
+# Filtrer par type d'événement
+cat news_logs.json | jq '.[] | select(.event_type=="new_articles_found")'
+
+# Compter les événements par type
+cat news_logs.json | jq '.[] | .event_type' | sort | uniq -c
+```détaillé avec cache anti-doublons :
 ```bash
 🚀 News Agent démarré - news_agent
 📍 Adresse: agent1qvk...
@@ -183,20 +235,34 @@ AI_AGENT_ADDRESS = "agent1qvk7q2av3e2y5gf5s90nfzkc8a48q3wdqeevwrtgqfdl0k78rspd6f
 ## 🎮 Utilisation
 
 ### 📰 Lancement de l'Agent News
-```bash
-# Méthode recommandée
-cd /Users/matteo/ETHGlobalCannes/agents/intellect
-/Users/matteo/ETHGlobalCannes/.venv/bin/python news.py
 
-# Alternative avec script wrapper
-./run_news_agent.sh
+#### Option 1 : Launcher avec logs (Recommandé)
+```bash
+cd /Users/matteo/ETHGlobalCannes/agents/intellect
+python3 news_launcher.py
+```
+**Avantages :**
+- ✅ Lance l'agent News automatiquement
+- ✅ Affiche tous les logs en temps réel avec timestamps
+- ✅ **Écrit automatiquement dans `news_logs.json`** tous les événements importants :
+  - 🚀 Démarrage/arrêt de l'agent
+  - 📰 Nouvelles actualités trouvées (avec nombre d'articles)
+  - 🔄 Récupération automatique des news
+  - 🌐 Requêtes API REST reçues
+  - ❌ Erreurs et événements système
+- ✅ Gestion propre de l'arrêt avec Ctrl+C
+- ✅ Rotation automatique des logs (garde les 1000 derniers événements)
+
+#### Option 2 : Lancement manuel
+```bash
+cd /Users/matteo/ETHGlobalCannes/agents/intellect
+/usr/local/opt/python@3.11/bin/python3.11 news.py
 ```
 
 ### 🧠 Lancement de l'Agent IntentFi
 ```bash
-# Lancement de l'agent IntentFi
 cd /Users/matteo/ETHGlobalCannes/agents/intellect
-/Users/matteo/ETHGlobalCannes/.venv/bin/python intellect.py
+/usr/local/opt/python@3.11/bin/python3.11 intellect.py
 ```
 
 ### 💬 API REST Agent News
