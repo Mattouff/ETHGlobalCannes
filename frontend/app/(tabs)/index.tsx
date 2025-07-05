@@ -108,9 +108,9 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={CommonStyles.header}>
           <View>
-            <ThemedText type="title">Dashboard</ThemedText>
+            <ThemedText style={CommonStyles.headerTitle}>Dashboard</ThemedText>
             <Text style={styles.address}>{formatAddress(address!)}</Text>
           </View>
           <TouchableOpacity

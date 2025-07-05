@@ -48,8 +48,8 @@ export default function SettingsScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <ThemedText type="title">Settings</ThemedText>
-          <ThemedText style={styles.subtitle}>
+          <ThemedText style={CommonStyles.headerTitle}>Settings</ThemedText>
+          <ThemedText style={CommonStyles.headerSubtitle}>
             Manage your wallet and AI agent preferences
           </ThemedText>
         </View>
