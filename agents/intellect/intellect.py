@@ -55,6 +55,32 @@ class NewsJsonResponse(Model):
     status: str
 
 
+# Modèles pour la communication avec Simon (Trading Agent)
+class TradingRecommendation(Model):
+    token_symbol: str
+    recommendation: str  # "buy", "sell", "hold"
+    confidence: float  # 0.0 to 1.0
+    reasoning: str
+    price_target: float = None
+    stop_loss: float = None
+    news_sentiment: str  # "positive", "negative", "neutral"
+    timestamp: str
+
+
+class TradingAnalysisRequest(Model):
+    token_symbol: str
+    news_context: list[dict[str, Any]] = []
+    request_id: str = ""
+    timestamp: str = ""
+
+
+class TradingAnalysisAPIResponse(Model):
+    success: bool
+    message: str
+    analysis: dict[str, Any] = None
+    timestamp: str
+
+
 # Configuration de l'agent avec endpoint
 agent = Agent(
     name="intellect",
@@ -67,6 +93,7 @@ print(f"Agent address: {agent.address}")
 fund_agent_if_low(agent.wallet.address())
 
 AI_AGENT_ADDRESS = "agent1qvk7q2av3e2y5gf5s90nfzkc8a48q3wdqeevwrtgqfdl0k78rspd6f2l4dx"
+SIMON_AGENT_ADDRESS = "agent1qvd8tt75720p60aggzlna7rep89rmadhrt67cllz486w4y6www06vquhcca"
 
 # Fichier des actualités généré par news.py
 NEWS_FILE = "news_logs.json"
@@ -473,6 +500,8 @@ async def send_message(ctx: Context):
     ctx.logger.info(f"   POST http://localhost:8000/recommend")
     ctx.logger.info(f"   GET  http://localhost:8000/intents/popular")
     ctx.logger.info(f"   GET  http://localhost:8000/getJson  🆕")
+    ctx.logger.info(f"   POST http://localhost:8000/trading/recommend  🆕")
+    ctx.logger.info(f"🤖 Communication avec Simon Agent: {SIMON_AGENT_ADDRESS}")
     
     # Test de connectivité avec l'AI agent
     ctx.logger.info(f"🔍 Test de connectivité avec AI Agent: {AI_AGENT_ADDRESS}")
@@ -595,6 +624,222 @@ async def handle_structured_response(ctx: Context, sender: str, msg: StructuredO
     except Exception as e:
         ctx.logger.error(f"❌ Erreur lors du traitement de la réponse Claude: {e}")
         ctx.logger.info(f"📋 Données brutes: {msg.output}")
+
+
+async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str, news_data: list = None):
+    """Envoie une recommandation de trading à Simon basée sur les actualités et l'analyse IA"""
+    
+    try:
+        ctx.logger.info(f"📊 Génération d'une recommandation de trading pour {token_symbol}...")
+        
+        # Si pas de news fournie, récupérer les actualités récentes
+        if news_data is None:
+            news_data = await get_recent_news_context(ctx)
+        
+        # Créer un ID unique pour cette demande
+        request_id = str(uuid.uuid4())
+        
+        # Créer un prompt spécialisé pour l'analyse de trading
+        trading_prompt = f"""
+        En tant qu'analyste financier expert, analysez les actualités récentes et fournissez une recommandation de trading précise pour {token_symbol}.
+        
+        Actualités récentes:
+        {json.dumps(news_data[:5], indent=2) if news_data else "Aucune actualité disponible"}
+        
+        Analysez:
+        1. Sentiment général du marché basé sur les actualités
+        2. Impact spécifique sur {token_symbol}
+        3. Tendances techniques et fondamentales
+        4. Niveaux de prix clés (support/résistance)
+        5. Catalyseurs positifs/négatifs identifiés
+        
+        Fournissez une recommandation de trading claire avec:
+        - Action: "buy", "sell", ou "hold"
+        - Niveau de confiance (0.0 à 1.0)
+        - Prix cible si applicable
+        - Stop loss recommandé
+        - Justification basée sur l'analyse
+        
+        Répondez UNIQUEMENT au format JSON strict:
+        {{
+            "recommendation": "buy/sell/hold",
+            "confidence": 0.XX,
+            "reasoning": "analyse détaillée basée sur les actualités",
+            "price_target": prix_cible_ou_null,
+            "stop_loss": stop_loss_ou_null,
+            "news_sentiment": "positive/negative/neutral",
+            "timestamp": "{datetime.now().isoformat()}",
+            "request_id": "{request_id}"
+        }}
+        """
+        
+        # Stocker la demande en attente
+        pending_requests[request_id] = "trading_analysis"
+        
+        # Créer le prompt structuré pour Claude
+        prompt = StructuredOutputPrompt(
+            prompt=trading_prompt,
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "recommendation": {"type": "string"},
+                    "confidence": {"type": "number"},
+                    "reasoning": {"type": "string"},
+                    "price_target": {"type": ["number", "null"]},
+                    "stop_loss": {"type": ["number", "null"]},
+                    "news_sentiment": {"type": "string"},
+                    "timestamp": {"type": "string"},
+                    "request_id": {"type": "string"}
+                }
+            }
+        )
+        
+        # Envoyer à Claude pour analyse
+        await ctx.send(AI_AGENT_ADDRESS, prompt)
+        ctx.logger.info("⏳ En attente de l'analyse de Claude...")
+        
+        # Attendre la réponse de Claude (timeout court)
+        import asyncio
+        for attempt in range(5):
+            await asyncio.sleep(1)
+            
+            if request_id in ai_responses:
+                ctx.logger.info("✅ Analyse reçue de Claude!")
+                analysis = ai_responses[request_id]
+                
+                # Nettoyer
+                del ai_responses[request_id]
+                if request_id in pending_requests:
+                    del pending_requests[request_id]
+                
+                # Créer la recommandation pour Simon
+                trading_rec = TradingRecommendation(
+                    token_symbol=token_symbol,
+                    recommendation=analysis.get("recommendation", "hold"),
+                    confidence=analysis.get("confidence", 0.5),
+                    reasoning=analysis.get("reasoning", "Analyse basée sur les actualités récentes"),
+                    price_target=analysis.get("price_target"),
+                    stop_loss=analysis.get("stop_loss"),
+                    news_sentiment=analysis.get("news_sentiment", "neutral"),
+                    timestamp=datetime.now().isoformat()
+                )
+                
+                # Envoyer à Simon
+                await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
+                ctx.logger.info(f"📤 Recommandation envoyée à Simon pour {token_symbol}")
+                
+                return analysis
+        
+        # Timeout - générer une recommandation de fallback
+        ctx.logger.warning("⏰ Timeout - génération d'une recommandation de fallback")
+        
+        # Analyser les actualités localement pour un fallback
+        sentiment = "neutral"
+        if news_data:
+            # Analyse simple du sentiment basée sur les mots-clés
+            all_text = " ".join([str(article.get("title", "")) + " " + str(article.get("content", "")) for article in news_data[:3]])
+            positive_words = ["rise", "bull", "growth", "gain", "increase", "positive", "up"]
+            negative_words = ["fall", "bear", "decline", "loss", "decrease", "negative", "down", "crash"]
+            
+            positive_count = sum(1 for word in positive_words if word in all_text.lower())
+            negative_count = sum(1 for word in negative_words if word in all_text.lower())
+            
+            if positive_count > negative_count:
+                sentiment = "positive"
+            elif negative_count > positive_count:
+                sentiment = "negative"
+        
+        # Recommandation de fallback
+        fallback_rec = TradingRecommendation(
+            token_symbol=token_symbol,
+            recommendation="hold",
+            confidence=0.6,
+            reasoning=f"Recommandation de fallback basée sur {len(news_data) if news_data else 0} actualités. Sentiment détecté: {sentiment}",
+            news_sentiment=sentiment,
+            timestamp=datetime.now().isoformat()
+        )
+        
+        await ctx.send(SIMON_AGENT_ADDRESS, fallback_rec)
+        ctx.logger.info(f"📤 Recommandation de fallback envoyée à Simon pour {token_symbol}")
+        
+        return {
+            "recommendation": "hold",
+            "confidence": 0.6,
+            "reasoning": f"Analyse de fallback - Sentiment: {sentiment}",
+            "news_sentiment": sentiment
+        }
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de l'envoi à Simon: {e}")
+        return None
+
+
+async def get_recent_news_context(ctx: Context):
+    """Récupère le contexte des actualités récentes depuis le fichier news"""
+    try:
+        if os.path.exists(NEWS_FILE):
+            with open(NEWS_FILE, 'r', encoding='utf-8') as f:
+                news_data = json.load(f)
+                return news_data.get('articles', [])
+        else:
+            ctx.logger.warning(f"⚠️ Fichier d'actualités {NEWS_FILE} non trouvé")
+            return []
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de la lecture des actualités: {e}")
+        return []
+
+
+@agent.on_rest_post("/trading/recommend", TradingAnalysisRequest, TradingAnalysisAPIResponse)
+async def request_trading_recommendation(ctx: Context, req: TradingAnalysisRequest) -> TradingAnalysisAPIResponse:
+    """Endpoint pour demander une recommandation de trading à Simon"""
+    
+    ctx.logger.info(f"🌐 API Call - Recommandation de trading pour {req.token_symbol}")
+    
+    try:
+        # Envoyer la recommandation à Simon
+        result = await send_trading_recommendation_to_simon(ctx, req.token_symbol)
+        
+        if result:
+            return TradingAnalysisAPIResponse(
+                success=True,
+                message=f"Recommandation de trading envoyée à Simon pour {req.token_symbol}",
+                analysis=result,
+                timestamp=datetime.now().isoformat()
+            )
+        else:
+            return TradingAnalysisAPIResponse(
+                success=False,
+                message="Erreur lors de la génération de la recommandation",
+                timestamp=datetime.now().isoformat()
+            )
+            
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur API trading: {e}")
+        return TradingAnalysisAPIResponse(
+            success=False,
+            message=f"Erreur: {str(e)}",
+            timestamp=datetime.now().isoformat()
+        )
+
+
+# Gestionnaire pour les demandes d'analyse de trading venant de Simon
+@agent.on_message(TradingAnalysisRequest)
+async def handle_trading_analysis_request(ctx: Context, sender: str, msg: TradingAnalysisRequest):
+    """Traite les demandes d'analyse de trading venant de Simon"""
+    
+    ctx.logger.info(f"📥 Demande d'analyse de trading reçue de Simon pour {msg.token_symbol}")
+    
+    try:
+        # Envoyer une recommandation basée sur les actualités actuelles
+        result = await send_trading_recommendation_to_simon(ctx, msg.token_symbol, None)
+        
+        if result:
+            ctx.logger.info(f"✅ Recommandation générée et envoyée pour {msg.token_symbol}")
+        else:
+            ctx.logger.error(f"❌ Échec de la génération de recommandation pour {msg.token_symbol}")
+            
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors du traitement de la demande de Simon: {e}")
 
 
 if __name__ == "__main__":

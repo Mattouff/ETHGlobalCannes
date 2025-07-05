@@ -189,31 +189,39 @@ async def startup_function(ctx: Context):
     ctx.logger.info(f"📍 Adresse: {agent.address}")
     ctx.logger.info(f"🌐 API REST disponible sur http://localhost:8002")
     ctx.logger.info(f"📋 Endpoints: POST /news, GET /health")
+    ctx.logger.info(f"🎯 Focus sur: ARBITRUM, ETH, FLOW, OPTI")
     ctx.logger.info(f"⏰ Récupération automatique toutes les 3 secondes")
 
 # Handler pour récupérer et afficher les news
 @agent.on_interval(period=3.0)  # Toutes les 5 minutes
 async def fetch_and_display_news(ctx: Context):
-    """Récupère les news toutes les 5 minutes et affiche seulement les nouvelles"""
-    ctx.logger.info("🔄 Récupération automatique des news...")
+    """Récupère les news toutes les 5 minutes et affiche seulement les nouvelles (focus sur ARBITRUM, ETH, FLOW, OPTI)"""
+    ctx.logger.info("🔄 Récupération automatique des news (tokens: ARBITRUM, ETH, FLOW, OPTI)...")
     
     try:
         # Nettoyer le cache de temps en temps
         clear_old_cache()
         
-        # Récupérer les news avec focus crypto par défaut et filtrage des doublons
-        crypto_query = "(cryptocurrency OR ethereum OR blockchain) AND (regulation OR SEC OR ETF OR adoption OR institutional OR ban OR legal OR government OR fed OR inflation OR tether OR binance OR coinbase OR grayscale OR blackrock OR microstrategy OR Trump OR Musk)"
-        raw_news = fetch_top_news(query=crypto_query, filter_displayed=True)
+        # Requête spécialisée pour nos tokens autorisés
+        # ARBITRUM, ETH, FLOW, OPTI avec leurs synonymes et contexte
+        specialized_query = "(ethereum OR ETH OR arbitrum OR ARB OR layer2 OR L2 OR flow OR \"flow blockchain\" OR dapper OR optimism OR OP OR optimistic) AND (price OR regulation OR SEC OR ETF OR adoption OR institutional OR DeFi OR NFT OR gaming OR upgrade OR update OR partnership OR integration OR development OR mainnet OR testnet)"
+        raw_news = fetch_top_news(query=specialized_query, filter_displayed=True)
         
         # Si pas de nouvelles actualités, ne rien afficher
         if not raw_news or (len(raw_news) == 1 and raw_news[0].get("title", "").startswith("ERROR")):
-            ctx.logger.info("📰 No new information")
-            # Ne pas logger dans JSON pour éviter le spam - juste afficher dans la console
+            ctx.logger.info("📰 No new information for our target tokens")
+            return
+        
+        # Filtrer davantage pour garder seulement les actualités vraiment pertinentes
+        filtered_news = filter_news_by_target_tokens(raw_news)
+        
+        if not filtered_news:
+            ctx.logger.info("📰 No relevant news for ARBITRUM/ETH/FLOW/OPTI")
             return
         
         # Formater les données (seulement les nouvelles)
         news_data = []
-        for article in raw_news:
+        for article in filtered_news:
             news_item = NewsData(
                 title=article.get("title", ""),
                 description=article.get("description", ""),
@@ -237,7 +245,8 @@ async def fetch_and_display_news(ctx: Context):
                 "description": n.description,
                 "source": n.source,
                 "url": n.url,
-                "timestamp": n.published_at
+                "timestamp": n.published_at,
+                "detected_tokens": detect_relevant_tokens(n.title + " " + n.description)
             } 
             for n in news_data
         ]
@@ -245,7 +254,7 @@ async def fetch_and_display_news(ctx: Context):
         
         # Afficher en JSON seulement s'il y a de nouvelles actualités
         news_json = json.dumps(news_response.dict(), indent=2, ensure_ascii=False)
-        ctx.logger.info(f"📰 {len(news_data)} NOUVELLES ACTUALITÉS:")
+        ctx.logger.info(f"📰 {len(news_data)} NOUVELLES ACTUALITÉS FILTRÉES:")
         ctx.logger.info(news_json)
         
     except Exception as e:
@@ -313,8 +322,8 @@ async def get_news_rest(ctx: Context, req: NewsRequest) -> NewsResponse:
             # Requête spécifique fournie
             query = req.query
         elif req.search_type == "crypto":
-            # Requête crypto par défaut
-            query = "(cryptocurrency OR bitcoin OR ethereum OR blockchain) AND (regulation OR SEC OR ETF OR adoption OR institutional OR ban OR legal OR government OR fed OR inflation OR tether OR binance OR coinbase OR grayscale OR blackrock OR microstrategy OR Trump OR Musk)"
+            # Requête crypto spécialisée pour nos tokens cibles
+            query = "(ethereum OR ETH OR arbitrum OR ARB OR layer2 OR L2 OR flow OR \"flow blockchain\" OR dapper OR optimism OR OP OR optimistic) AND (price OR regulation OR SEC OR ETF OR adoption OR institutional OR DeFi OR NFT OR gaming OR upgrade OR update OR partnership OR integration OR development OR mainnet OR testnet)"
         elif req.search_type == "tech":
             # Requête tech
             query = "AI OR artificial intelligence OR technology"
@@ -323,13 +332,17 @@ async def get_news_rest(ctx: Context, req: NewsRequest) -> NewsResponse:
         # Récupérer les news avec filtrage pour éviter les doublons
         raw_news = fetch_top_news(query=query, filter_displayed=True)
         
+        # Appliquer le filtrage par tokens cibles si c'est une recherche crypto
+        if req.search_type == "crypto":
+            raw_news = filter_news_by_target_tokens(raw_news)
+        
         # Si pas de nouvelles actualités, retourner "No new information"
         if not raw_news or (len(raw_news) == 1 and raw_news[0].get("title", "").startswith("ERROR")):
             # Retourner "No new information" sans logger (évite le spam dans les logs JSON)
             return NewsResponse(
                 news=[NewsData(
-                    title="No new information",
-                    description="No new articles found since last request",
+                    title="No new information for target tokens",
+                    description="No new articles found for ARBITRUM/ETH/FLOW/OPTI since last request",
                     url="",
                     source="System",
                     published_at=datetime.now().isoformat()
@@ -390,6 +403,59 @@ async def health_check(ctx: Context) -> HealthResponse:
         address=agent.address,
         timestamp=datetime.now().isoformat()
     )
+
+displayed_news_cache.clear()  # Vider le cache complètement
+
+
+def detect_relevant_tokens(text: str) -> list:
+    """Détecte quels tokens sont mentionnés dans le texte"""
+    text_lower = text.lower()
+    found_tokens = []
+    
+    # Mapping des tokens avec leurs variantes
+    token_patterns = {
+        "ARBITRUM": ["arbitrum", "arb", "layer 2", "l2"],
+        "ETH": ["ethereum", "eth", "ether"],
+        "FLOW": ["flow", "flow blockchain", "dapper"],
+        "OPTI": ["optimism", "opti", "op ", " op)", "optimistic"]
+    }
+    
+    for token, patterns in token_patterns.items():
+        if any(pattern in text_lower for pattern in patterns):
+            found_tokens.append(token)
+    
+    return found_tokens
+
+
+def filter_news_by_target_tokens(news_list: list) -> list:
+    """Filtre les actualités pour garder seulement celles pertinentes aux tokens cibles"""
+    filtered = []
+    
+    for article in news_list:
+        title = article.get("title", "")
+        description = article.get("description", "")
+        full_text = f"{title} {description}".lower()
+        
+        # Vérifier si l'article mentionne nos tokens cibles
+        relevant_tokens = detect_relevant_tokens(full_text)
+        
+        if relevant_tokens:
+            # Ajouter les tokens détectés à l'article pour traçabilité
+            article["relevant_tokens"] = relevant_tokens
+            filtered.append(article)
+        
+        # Garder aussi les actualités générales crypto importantes
+        general_crypto_keywords = [
+            "sec", "etf", "regulation", "institutional", "adoption",
+            "defi", "nft", "layer 2", "scaling", "gas fees"
+        ]
+        
+        if not relevant_tokens and any(keyword in full_text for keyword in general_crypto_keywords):
+            article["relevant_tokens"] = ["GENERAL_CRYPTO"]
+            filtered.append(article)
+    
+    return filtered
+
 
 if __name__ == "__main__":
     agent.run()
