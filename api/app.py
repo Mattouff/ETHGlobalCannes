@@ -1,15 +1,24 @@
-from flask import Flask, jsonify, request
-import requests
 import os
 import re
 from decimal import Decimal
 
+import requests
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request
+
+# Load environment variables
+load_dotenv()
+
 app = Flask(__name__)
 
-ALCHEMY_API_KEY = "dDOVAvCmh3rX60qNaCjbs"
+ALCHEMY_API_KEY = os.getenv("ALCHEMY_API_KEY")
 ALCHEMY_ETH_URL = f"https://eth-sepolia.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
 ALCHEMY_BASE_URL = f"https://base-sepolia.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
 ALCHEMY_FLOW_URL = f"https://flow-testnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
+
+# CoinGecko API configuration
+COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
+COINGECKO_BASE_URL = os.getenv("COINGECKO_BASE_URL")
 
 
 # Fonctions utilitaires
@@ -63,8 +72,101 @@ def get_token_metadata(contract_address, rpc_url):
         print(f"Error getting token metadata for {contract_address}: {str(e)}")
         return default_metadata
 
+def get_token_price_simple(token_symbol, contract_address=None, platform="ethereum"):
+    """Simplified token price fetching - contract address first, then symbol for native tokens"""
+    try:
+        # For native tokens (no contract address), use symbol
+        if not contract_address or contract_address == "native":
+            # Map symbols to CoinGecko IDs for native tokens
+            native_coin_ids = {
+                "ETH": "ethereum",
+                "FLOW": "flow",
+                "BTC": "bitcoin"
+            }
+            
+            coin_id = native_coin_ids.get(token_symbol.upper())
+            if not coin_id:
+                return 0
+                
+            url = f"{COINGECKO_BASE_URL}/simple/price"
+            params = {
+                "ids": coin_id,
+                "vs_currencies": "usd",
+                "x_cg_demo_api_key": COINGECKO_API_KEY
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            return data.get(coin_id, {}).get("usd", 0)
+        
+        else:
+            # For ERC-20 tokens, use contract address
+            platform_mapping = {
+                "ethereum": "ethereum",
+                "base": "base", 
+                "flow": "flow"
+            }
+            
+            coingecko_platform = platform_mapping.get(platform, "ethereum")
+            
+            url = f"{COINGECKO_BASE_URL}/simple/token_price/{coingecko_platform}"
+            params = {
+                "contract_addresses": contract_address,
+                "vs_currencies": "usd",
+                "x_cg_demo_api_key": COINGECKO_API_KEY
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            return data.get(contract_address.lower(), {}).get("usd", 0)
+            
+    except Exception as e:
+        print(f"Error getting price for {token_symbol}/{contract_address}: {str(e)}")
+        return 0
 
-def create_standard_response(chain, address, tokens, native_balance=0, debug_info=None, error=None):
+def calculate_token_usd_value(token, platform="ethereum"):
+    """Calculate USD value for a single token - simplified"""
+    try:
+        balance = float(token.get("readableBalance", 0))
+        if balance <= 0:
+            token["price_usd"] = 0
+            token["value_usd"] = 0
+            return 0
+        
+        symbol = token.get("symbol", "")
+        contract_address = token.get("contractAddress", "")
+        
+        # Single price lookup function
+        price = get_token_price_simple(symbol, contract_address, platform)
+        
+        usd_value = balance * price
+        
+        token["price_usd"] = price
+        token["value_usd"] = usd_value
+        
+        return usd_value
+        
+    except Exception as e:
+        print(f"Error calculating USD value for token: {str(e)}")
+        token["price_usd"] = 0
+        token["value_usd"] = 0
+        return 0
+
+def calculate_total_wallet_value(tokens, platform="ethereum"):
+    """Calculate total USD value of all tokens in wallet"""
+    total_value = 0
+    
+    for token in tokens:
+        token_value = calculate_token_usd_value(token, platform)
+        total_value += token_value
+    
+    return round(total_value, 2)
+
+def create_standard_response(chain, address, tokens, native_balance=0, debug_info=None, error=None, platform="ethereum"):
     """Crée une réponse standardisée pour toutes les routes"""
     base_response = {
         "success": error is None,
@@ -79,14 +181,18 @@ def create_standard_response(chain, address, tokens, native_balance=0, debug_inf
             "error": error,
             "tokens": [],
             "token_count": 0,
-            "native_balance": 0
+            "native_balance": 0,
+            "total_value_usd": 0
         })
     else:
+        # Calculate actual USD value of all tokens
+        total_value_usd = calculate_total_wallet_value(tokens, platform)
+        
         base_response.update({
             "tokens": tokens,
             "token_count": len(tokens),
             "native_balance": native_balance,
-            "total_value_usd": 60  # TODO: ajouter calcul prix si nécessaire
+            "total_value_usd": total_value_usd
         })
     
     if debug_info:
@@ -99,7 +205,13 @@ def create_standard_response(chain, address, tokens, native_balance=0, debug_inf
 def get_eth_tokens_balances(address):
     """Récupère les tokens ETH Sepolia testnet avec métadonnées"""
     if not is_valid_eth_address(address):
-        return jsonify({"error": "Invalid Ethereum address"}), 400
+        return jsonify(create_standard_response(
+            chain="ethereum_sepolia",
+            address=address,
+            tokens=[],
+            platform="ethereum",
+            error="Invalid Ethereum address"
+        )), 400
         
     # D'abord récupérer le balance ETH natif
     eth_payload = {
@@ -194,6 +306,7 @@ def get_eth_tokens_balances(address):
             address=address,
             tokens=result_tokens,
             native_balance=eth_balance,
+            platform="ethereum",
             debug_info={
                 "total_tokens_checked": len(balances),
                 "non_zero_tokens": len(non_zero_balances),
@@ -207,6 +320,7 @@ def get_eth_tokens_balances(address):
             chain="ethereum_sepolia",
             address=address,
             tokens=[],
+            platform="ethereum",
             error=str(e)
         )), 500
 
@@ -214,7 +328,13 @@ def get_eth_tokens_balances(address):
 def get_base_token_balances(address):
     """Récupère les tokens Base Sepolia testnet avec métadonnées"""
     if not is_valid_eth_address(address):
-        return jsonify({"error": "Invalid Ethereum address"}), 400
+        return jsonify(create_standard_response(
+            chain="base_sepolia",
+            address=address,
+            tokens=[],
+            platform="base",
+            error="Invalid Ethereum address"
+        )), 400
         
     # D'abord récupérer le balance ETH natif sur Base
     eth_payload = {
@@ -256,6 +376,7 @@ def get_base_token_balances(address):
                 chain="base_sepolia",
                 address=address,
                 tokens=[],
+                platform="base",
                 error=data["error"]["message"]
             )), 400
 
@@ -312,6 +433,7 @@ def get_base_token_balances(address):
             address=address,
             tokens=result_tokens,
             native_balance=eth_balance,
+            platform="base",
             debug_info={
                 "total_tokens_checked": len(balances),
                 "non_zero_tokens": len(non_zero_balances),
@@ -326,6 +448,7 @@ def get_base_token_balances(address):
             chain="base_sepolia", 
             address=address,
             tokens=[],
+            platform="base",
             error=str(e)
         )), 500
 
@@ -333,7 +456,13 @@ def get_base_token_balances(address):
 def get_flow_token_balances(address):
     """Récupère les tokens Flow testnet avec métadonnées"""
     if not is_valid_eth_address(address):
-        return jsonify({"error": "Invalid Flow address format"}), 400
+        return jsonify(create_standard_response(
+            chain="flow_testnet",
+            address=address,
+            tokens=[],
+            platform="flow",
+            error="Invalid Flow address format"
+        )), 400
         
     # D'abord récupérer le balance FLOW natif
     flow_payload = {
@@ -452,6 +581,7 @@ def get_flow_token_balances(address):
         address=address,
         tokens=result_tokens,
         native_balance=flow_balance,
+        platform="flow",
         debug_info={
             "note": note,
             "flow_info": {
@@ -754,6 +884,7 @@ def quick_balance_check(address):
             chain="ethereum_sepolia",
             address=address,
             tokens=[],
+            platform="ethereum",
             error="Invalid Ethereum address"
         )), 400
     
@@ -776,6 +907,7 @@ def quick_balance_check(address):
             chain="ethereum_sepolia",
             address=address,
             tokens=[],
+            platform="ethereum",
             error=f"Failed to check balance: {str(e)}"
         )), 500
     
@@ -832,6 +964,7 @@ def quick_balance_check(address):
         address=address,
         tokens=result_tokens,
         native_balance=eth_balance,
+        platform="ethereum",
         debug_info={
             "eth_status": "✅ Has ETH" if eth_balance > 0 else "❌ No ETH - use faucet",
             "overall_status": status,
@@ -851,6 +984,7 @@ def get_all_tokens(address):
             chain="multi_chain",
             address=address,
             tokens=[],
+            platform="ethereum",
             error="Invalid Ethereum address"
         )), 400
     
@@ -968,6 +1102,7 @@ def get_all_tokens(address):
         address=address,
         tokens=all_tokens,
         native_balance=total_native_balance,
+        platform="ethereum",  # Default to ethereum for multi-chain
         debug_info={
             "chains_tested": list(debug_chains.keys()),
             "chains_detail": debug_chains,
