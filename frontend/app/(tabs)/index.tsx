@@ -1,75 +1,526 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { AppColors, CommonStyles } from "@/constants/AppStyles";
+import { useApp } from "@/contexts/AppContext";
+import { useWallet } from "@/contexts/WalletContext";
+import { useEffect } from "react";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function DashboardScreen() {
+  const { state } = useApp();
+  const { isConnected, address, connect, isConnecting, disconnect } =
+    useWallet();
 
-export default function HomeScreen() {
+  // Connect wallet to app context when wallet connects
+  useEffect(() => {
+    if (isConnected && address) {
+      // In a real app, you would get the chain from the wallet
+      // For demo, assume Ethereum mainnet
+      // connectWallet(address, 'Ethereum');
+    }
+  }, [isConnected, address]);
+
+  const handleConnectWallet = async () => {
+    try {
+      await connect();
+    } catch {
+      Alert.alert("Connection Error", "Failed to connect wallet");
+    }
+  };
+
+  const handleDisconnectWallet = async () => {
+    try {
+      await disconnect();
+    } catch {
+      Alert.alert("Disconnection Error", "Failed to disconnect wallet");
+    }
+  };
+
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
+  const getStatusColor = (isActive: boolean) => {
+    return isActive ? "#10B981" : "#EF4444";
+  };
+
+  if (!isConnected) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.connectContainer}>
+          <ThemedText type="title" style={styles.title}>
+            AI Agent Cross-Chain Portfolio
+          </ThemedText>
+          <ThemedText style={styles.subtitle}>
+            Connect your wallet to start managing your cross-chain assets with
+            AI assistance
+          </ThemedText>
+
+          <TouchableOpacity
+            style={[
+              styles.connectButton,
+              isConnecting && styles.connectingButton,
+            ]}
+            onPress={handleConnectWallet}
+            disabled={isConnecting}
+          >
+            <Text style={styles.connectButtonText}>
+              {isConnecting ? "Connecting..." : "Connect Wallet"}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.featuresContainer}>
+            <View style={styles.feature}>
+              <Text style={styles.featureIcon}>🤖</Text>
+              <ThemedText style={styles.featureText}>
+                AI-powered trading insights
+              </ThemedText>
+            </View>
+            <View style={styles.feature}>
+              <Text style={styles.featureIcon}>🌐</Text>
+              <ThemedText style={styles.featureText}>
+                Cross-chain asset management
+              </ThemedText>
+            </View>
+            <View style={styles.feature}>
+              <Text style={styles.featureIcon}>⚡</Text>
+              <ThemedText style={styles.featureText}>
+                Automated execution
+              </ThemedText>
+            </View>
+          </View>
+        </View>
+      </ThemedView>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <ThemedView style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <ThemedText type="title">Dashboard</ThemedText>
+            <Text style={styles.address}>{formatAddress(address!)}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.disconnectButton}
+            onPress={handleDisconnectWallet}
+          >
+            <Text style={styles.disconnectButtonText}>Disconnect</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Portfolio Overview */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            Portfolio Overview
+          </ThemedText>
+          <View style={styles.portfolioCard}>
+            <ThemedText type="title" style={styles.portfolioValue}>
+              {state.totalPortfolioValue}
+            </ThemedText>
+            <ThemedText style={styles.portfolioLabel}>Total Value</ThemedText>
+            <View style={styles.portfolioStats}>
+              <View style={styles.stat}>
+                <ThemedText style={styles.statValue}>
+                  {state.assets.length}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Assets</ThemedText>
+              </View>
+              <View style={styles.stat}>
+                <ThemedText style={styles.statValue}>4</ThemedText>
+                <ThemedText style={styles.statLabel}>Chains</ThemedText>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* AI Agent Status */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            AI Agent Status
+          </ThemedText>
+          <View style={styles.agentCard}>
+            <View style={styles.agentHeader}>
+              <View style={styles.agentStatus}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor: getStatusColor(
+                        state.agentStatus.isActive
+                      ),
+                    },
+                  ]}
+                />
+                <ThemedText style={styles.statusText}>
+                  {state.agentStatus.isActive ? "Active" : "Inactive"}
+                </ThemedText>
+              </View>
+              <ThemedText style={styles.confidenceText}>
+                {Math.round(state.agentStatus.confidenceLevel * 100)}%
+                Confidence
+              </ThemedText>
+            </View>
+
+            <View style={styles.agentMetrics}>
+              <View style={styles.metric}>
+                <ThemedText style={styles.metricValue}>
+                  {state.agentStatus.marketDataSources.length}
+                </ThemedText>
+                <ThemedText style={styles.metricLabel}>Data Sources</ThemedText>
+              </View>
+              <View style={styles.metric}>
+                <ThemedText style={styles.metricValue}>
+                  {state.agentStatus.newsSourcesActive}
+                </ThemedText>
+                <ThemedText style={styles.metricLabel}>News Sources</ThemedText>
+              </View>
+              <View style={styles.metric}>
+                <ThemedText style={styles.metricValue}>
+                  {Math.floor(
+                    (Date.now() - state.agentStatus.lastUpdate) / 60000
+                  )}
+                  m
+                </ThemedText>
+                <ThemedText style={styles.metricLabel}>Last Update</ThemedText>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Recent Intents */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            Recent AI Intents
+          </ThemedText>
+          {state.intents.slice(0, 3).map((intent) => (
+            <View key={intent.id} style={styles.intentCard}>
+              <View style={styles.intentHeader}>
+                <View style={styles.intentType}>
+                  <Text style={styles.intentTypeText}>
+                    {intent.type.toUpperCase()}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.intentStatus,
+                    {
+                      backgroundColor:
+                        intent.status === "pending" ? "#F59E0B" : "#10B981",
+                    },
+                  ]}
+                >
+                  <Text style={styles.intentStatusText}>
+                    {intent.status.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+
+              <ThemedText style={styles.intentDetails}>
+                {intent.amount} {intent.fromToken} → {intent.toToken}
+              </ThemedText>
+
+              <ThemedText style={styles.intentReasoning} numberOfLines={2}>
+                {intent.reasoning}
+              </ThemedText>
+
+              <View style={styles.intentFooter}>
+                <ThemedText style={styles.intentConfidence}>
+                  {Math.round(intent.confidence * 100)}% Confidence
+                </ThemedText>
+                <ThemedText style={styles.intentTime}>
+                  {Math.floor((Date.now() - intent.timestamp) / 60000)}m ago
+                </ThemedText>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            Quick Actions
+          </ThemedText>
+          <View style={styles.quickActions}>
+            <TouchableOpacity style={styles.actionButton}>
+              <Text style={styles.actionIcon}>📊</Text>
+              <ThemedText style={styles.actionText}>View Portfolio</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton}>
+              <Text style={styles.actionIcon}>🎯</Text>
+              <ThemedText style={styles.actionText}>Review Intents</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton}>
+              <Text style={styles.actionIcon}>📜</Text>
+              <ThemedText style={styles.actionText}>
+                Transaction History
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: AppColors.screenBackground,
   },
-  stepContainer: {
-    gap: 8,
+  connectContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  title: {
+    color: AppColors.textPrimary,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  subtitle: {
+    color: AppColors.textSecondary,
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  connectButton: {
+    backgroundColor: AppColors.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginBottom: 32,
+  },
+  connectingButton: {
+    opacity: 0.6,
+  },
+  connectButtonText: {
+    color: AppColors.textInverse,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  featuresContainer: {
+    gap: 16,
+  },
+  feature: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  featureIcon: {
+    fontSize: 24,
+  },
+  featureText: {
+    color: AppColors.textPrimary,
+    fontSize: 16,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 24,
+    paddingTop: 60,
+  },
+  address: {
+    fontSize: 14,
+    color: AppColors.textSecondary,
+    marginTop: 4,
+  },
+  disconnectButton: {
+    backgroundColor: AppColors.error,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  disconnectButtonText: {
+    color: AppColors.textInverse,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  section: {
+    ...CommonStyles.section,
+  },
+  sectionTitle: {
+    ...CommonStyles.sectionTitle,
+  },
+  portfolioCard: {
+    ...CommonStyles.card,
+    backgroundColor: AppColors.cardBackground,
+    borderWidth: 1,
+    borderColor: AppColors.border,
+    padding: 24,
+    alignItems: "center",
+  },
+  portfolioValue: {
+    color: AppColors.success,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  portfolioLabel: {
+    color: AppColors.textSecondary,
+    marginBottom: 16,
+  },
+  portfolioStats: {
+    flexDirection: "row",
+    gap: 32,
+  },
+  stat: {
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: AppColors.textPrimary,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: AppColors.textMuted,
+    marginTop: 4,
+  },
+  agentCard: {
+    ...CommonStyles.card,
+    backgroundColor: AppColors.cardBackground,
+    borderWidth: 1,
+    borderColor: AppColors.border,
+  },
+  agentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  agentStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontWeight: "600",
+    color: AppColors.textPrimary,
+  },
+  confidenceText: {
+    fontSize: 14,
+    color: AppColors.success,
+    fontWeight: "600",
+  },
+  agentMetrics: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  metric: {
+    alignItems: "center",
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: AppColors.textPrimary,
+  },
+  metricLabel: {
+    fontSize: 12,
+    color: AppColors.textMuted,
+    marginTop: 4,
+  },
+  intentCard: {
+    ...CommonStyles.card,
+    backgroundColor: AppColors.cardBackground,
+    borderWidth: 1,
+    borderColor: AppColors.border,
+    padding: 16,
+    marginBottom: 12,
+  },
+  intentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  intentType: {
+    backgroundColor: AppColors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  intentTypeText: {
+    color: AppColors.textInverse,
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  intentStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  intentStatusText: {
+    color: AppColors.textInverse,
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  intentDetails: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: AppColors.textPrimary,
+    marginBottom: 8,
+  },
+  intentReasoning: {
+    fontSize: 14,
+    color: AppColors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  intentFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  intentConfidence: {
+    fontSize: 12,
+    color: AppColors.success,
+    fontWeight: "600",
+  },
+  intentTime: {
+    fontSize: 12,
+    color: AppColors.textMuted,
+  },
+  quickActions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  actionButton: {
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: AppColors.cardBackground,
+    borderWidth: 1,
+    borderColor: AppColors.border,
+    borderRadius: 12,
+    minWidth: 80,
+  },
+  actionIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  actionText: {
+    fontSize: 12,
+    textAlign: "center",
+    color: AppColors.textPrimary,
   },
 });
