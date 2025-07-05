@@ -3,18 +3,22 @@ import re
 from decimal import Decimal
 
 import requests
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 
-ALCHEMY_API_KEY = "dDOVAvCmh3rX60qNaCjbs"
+ALCHEMY_API_KEY = os.getenv("ALCHEMY_API_KEY")
 ALCHEMY_ETH_URL = f"https://eth-sepolia.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
 ALCHEMY_BASE_URL = f"https://base-sepolia.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
 ALCHEMY_FLOW_URL = f"https://flow-testnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
 
 # CoinGecko API configuration
-COINGECKO_API_KEY = "CG-mr7yWjrfkrQADpfyEaRDUDMM"
-COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
+COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
+COINGECKO_BASE_URL = os.getenv("COINGECKO_BASE_URL")
 
 
 # Fonctions utilitaires

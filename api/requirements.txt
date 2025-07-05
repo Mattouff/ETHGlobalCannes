@@ -1,0 +1,4 @@
+# Add python-dotenv to requirements
+flask
+requests
+python-dotenv

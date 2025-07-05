@@ -66,7 +66,7 @@ curl http://localhost:5001/check-balance/0xYourAddress
 
 **CoinGecko API Configuration:**
 
-- API Key: `CG-mr7yWjrfkrQADpfyEaRDUDMM` (pre-configured)
+- API Key: `` (pre-configured)
 - Base URL: `https://api.coingecko.com/api/v3`
 
 **Price Lookup Strategy:**
