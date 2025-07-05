@@ -4,6 +4,7 @@ from uagents.setup import fund_agent_if_low
 import json
 import uuid
 from datetime import datetime
+import os
 
 
 class TextPrompt(Model):
@@ -47,6 +48,13 @@ class PopularIntentsResponse(Model):
     timestamp: str
 
 
+class NewsJsonResponse(Model):
+    articles: list[dict[str, Any]]
+    total_articles: int
+    timestamp: str
+    status: str
+
+
 # Configuration de l'agent avec endpoint
 agent = Agent(
     name="intellect",
@@ -59,6 +67,9 @@ print(f"Agent address: {agent.address}")
 fund_agent_if_low(agent.wallet.address())
 
 AI_AGENT_ADDRESS = "agent1qvk7q2av3e2y5gf5s90nfzkc8a48q3wdqeevwrtgqfdl0k78rspd6f2l4dx"
+
+# Fichier des actualités généré par news.py
+NEWS_FILE = "news_logs.json"
 
 # Protocol pour IntentFi
 intentfi_protocol = Protocol("IntentFi")
@@ -395,6 +406,57 @@ async def get_popular_intents(ctx: Context) -> PopularIntentsResponse:
         timestamp=str(ctx.timestamp) if hasattr(ctx, 'timestamp') else "N/A"
     )
 
+
+@agent.on_rest_get("/getJson", NewsJsonResponse)
+async def get_news_json(ctx: Context) -> NewsJsonResponse:
+    """Endpoint pour récupérer le contenu du fichier news_logs.json"""
+    
+    ctx.logger.info("🌐 API Call - Récupération du JSON des actualités")
+    
+    try:
+        # Lire le fichier news_logs.json
+        if not os.path.exists(NEWS_FILE):
+            ctx.logger.warning(f"⚠️ Fichier {NEWS_FILE} non trouvé")
+            return NewsJsonResponse(
+                articles=[],
+                total_articles=0,
+                timestamp=datetime.now().isoformat(),
+                status="no_data"
+            )
+        
+        with open(NEWS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        articles = data.get("articles", [])
+        total_count = len(articles)
+        
+        ctx.logger.info(f"📰 JSON récupéré : {total_count} articles")
+        
+        return NewsJsonResponse(
+            articles=articles,
+            total_articles=total_count,
+            timestamp=data.get("timestamp", datetime.now().isoformat()),
+            status="success"
+        )
+        
+    except json.JSONDecodeError as e:
+        ctx.logger.error(f"❌ Erreur JSON : {e}")
+        return NewsJsonResponse(
+            articles=[],
+            total_articles=0,
+            timestamp=datetime.now().isoformat(),
+            status="json_error"
+        )
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de la lecture : {e}")
+        return NewsJsonResponse(
+            articles=[],
+            total_articles=0,
+            timestamp=datetime.now().isoformat(),
+            status="error"
+        )
+
+
 agent.include(intentfi_protocol)
 
 class Location(Model):
@@ -410,6 +472,7 @@ async def send_message(ctx: Context):
     ctx.logger.info(f"   GET  http://localhost:8000/health")
     ctx.logger.info(f"   POST http://localhost:8000/recommend")
     ctx.logger.info(f"   GET  http://localhost:8000/intents/popular")
+    ctx.logger.info(f"   GET  http://localhost:8000/getJson  🆕")
     
     # Test de connectivité avec l'AI agent
     ctx.logger.info(f"🔍 Test de connectivité avec AI Agent: {AI_AGENT_ADDRESS}")
