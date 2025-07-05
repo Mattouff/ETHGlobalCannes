@@ -1,7 +1,105 @@
 {
-  "timestamp": "2025-07-05T20:54:49.061825",
-  "total_articles": 49,
+  "timestamp": "2025-07-05T23:33:17.089060",
+  "total_articles": 62,
   "articles": [
+    {
+      "title": "Brazil’s central bank service provider hacked, $140M stolen",
+      "description": "The theft occurred after the hackers allegedly compromised an employee of C&M, a software service provider, by buying the employee’s login credentials.",
+      "source": "Cointelegraph",
+      "url": "https://cointelegraph.com/news/brazil-central-bank-service-provider-hacked-140-million",
+      "timestamp": "2025-07-04T21:32:06Z"
+    },
+    {
+      "title": "Bitcoin Dives on OG Whale FUD, But Charts Remain Bullish: Analysis",
+      "description": "A dormant Bitcoin whale woke up and chose violence—by spooking skittish BTC traders with an $8 billion move. The charts though? They tell a different story.",
+      "source": "Decrypt",
+      "url": "https://decrypt.co/328731/bitcoin-price-dives-og-whale-fud-charts-bullish-analysis",
+      "timestamp": "2025-07-04T21:31:02Z"
+    },
+    {
+      "title": "Russian defense conglomerate Rostec to launch ruble-pegged stablecoin on TRON",
+      "description": "Rostec, the Russian defense and technology conglomerate, announced on July 3 that it will introduce a ruble-pegged stablecoin and a linked payment network this year, utilizing Tron infrastructure. According to the Russian news agency TASS, Rostec named the to…",
+      "source": "CryptoSlate",
+      "url": "https://cryptoslate.com/russian-defense-conglomerate-rostec-to-launch-ruble-pegged-stablecoin-on-tron/",
+      "timestamp": "2025-07-04T21:30:12Z"
+    },
+    {
+      "title": "Sweden’s justice minister says to ‘turn up the pressure’ on crypto seizures",
+      "description": "Gunnar Strömmer reportedly said that Swedish authorities had confiscated more than $8.3 million worth of criminal profits since a law related to seizures was passed in 2024.",
+      "source": "Cointelegraph",
+      "url": "https://cointelegraph.com/news/sweden-pressure-crypto-confiscated",
+      "timestamp": "2025-07-04T21:19:51Z"
+    },
+    {
+      "title": "Bybit TradFi x Crypto Report: Regulatory Tailwinds Drive Coinbase Outperformance Despite Premium Valuation",
+      "description": "DUBAI, United Arab Emirates, Jul. 4, 2025 — Bybit, the world’s second-largest cryptocurrency exchange by trading volume, has released a new Bybit TradFi x Crypto Report looking beyond PEs in evaluating the growth potential of Coinbase Global Inc. (NASDAQ: COI…",
+      "source": "ZyCrypto",
+      "url": "https://zycrypto.com/bybit-tradfi-x-crypto-report-regulatory-tailwinds-drive-coinbase-outperformance-despite-premium-valuation/",
+      "timestamp": "2025-07-04T21:13:47Z"
+    },
+    {
+      "title": "Russian Arms Maker Wants Its Own Stablecoin Too—On Tron",
+      "description": "Russian state-owned manufacturing firm Rostec has said it will roll out a ruble-pegged token called RUBx on Tron. And a payments platform to boot.",
+      "source": "Decrypt",
+      "url": "https://decrypt.co/328715/russia-military-rostec-stablecoin-tron",
+      "timestamp": "2025-07-04T20:31:02Z"
+    },
+    {
+      "title": "Mercado Bitcoin to Tokenize Real-World Assets on XRPL Blockchain",
+      "description": "Digital asset platform Mercado Bitcoin plans to tokenize more than $200 million in permissioned real-world assets (RWAs) on the XRP Ledger (XRPL). [contact-form-7] A key contributor to the XRPL, Ripple, announced these plans in a Friday (July 4) blog post, sa…",
+      "source": "pymnts.com",
+      "url": "http://www.pymnts.com/blockchain/2025/mercado-bitcoin-to-tokenize-real-world-assets-on-xrpl-blockchain/",
+      "timestamp": "2025-07-04T20:21:37Z"
+    },
+    {
+      "title": "Amber International shares fall 6.7% following addition of Sui, XRP, BNB to $100 million reserve",
+      "description": "Amber International announced on July 3 that it will deploy new capital into Sui, XRP, and BNB as the next phase of its $100 million Crypto Ecosystem Reserve, expanding its treasury, which already holds Bitcoin, Ethereum, and Solana. The company funded the ex…",
+      "source": "CryptoSlate",
+      "url": "https://cryptoslate.com/amber-international-shares-fall-6-7-following-addition-of-sui-xrp-bnb-to-100-million-reserve/",
+      "timestamp": "2025-07-04T20:00:08Z"
+    },
+    {
+      "title": "Crypto Biz: Peter Thiel eyes the SVB throne",
+      "description": "Billionaires Peter Thiel, Palmer Luckey and Joe Lonsdale are reportedly launching Erebor, a new financial institution to serve crypto companies and startups left behind after Silicon Valley Bank’s 2023 collapse.",
+      "source": "Cointelegraph",
+      "url": "https://cointelegraph.com/news/peter-thiel-erebor-bank-svb-collapse-crypto-startups",
+      "timestamp": "2025-07-04T20:00:00Z"
+    },
+    {
+      "title": "Topnotch Crypto Unveils 2025 Cloud Mining Breakthrough: Earn Daily Without the Tech Hassle",
+      "description": "Topnotch Crypto Unveils 2025 Cloud Mining Breakthrough: Free Cloud Power Now Available for All New Users Topnotch Crypto Unveils 2025 Cloud Mining Breakthrough: Free Cloud Power Now Available for All New Users",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110485/0/en/Topnotch-Crypto-Unveils-2025-Cloud-Mining-Breakthrough-Earn-Daily-Without-the-Tech-Hassle.html",
+      "timestamp": "2025-07-04T19:59:00Z"
+    },
+    {
+      "title": "Modernized Banking Solutions - AMINA Bank Integrates Ripple USD (RLUSD) Stablecoin (TrendHunter.com)",
+      "description": "(TrendHunter.com) AMINA Bank's integration of Ripple USD (RLUSD) stablecoin services marks a significant milestone in the convergence of traditional banking and digital asset ecosystems. As the first globally...",
+      "source": "Trendhunter.com",
+      "url": "https://www.trendhunter.com/trends/amina-bank",
+      "timestamp": "2025-07-04T19:56:06Z"
+    },
+    {
+      "title": "FBI Warning—Do Not Take These Calls On Your Smartphone",
+      "description": "These calls are never what they seem — hang up immediately.",
+      "source": "Forbes",
+      "url": "https://www.forbes.com/sites/zakdoffman/2025/07/04/fbi-warning-you-must-not-take-any-of-these-phone-calls/",
+      "timestamp": "2025-07-04T19:44:38Z"
+    },
+    {
+      "title": "Bitcoin ETF fever returns, DOT Miners helps digital assets grow steadily",
+      "description": "Flexible contracts and green computing power, easily open a new model of passive income Flexible contracts and green computing power, easily open a new model of passive income",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110482/0/en/Bitcoin-ETF-fever-returns-DOT-Miners-helps-digital-assets-grow-steadily.html",
+      "timestamp": "2025-07-04T19:13:00Z"
+    },
+    {
+      "title": "PFMCrypto Launches $1M+ Rewards Campaign with AI-Powered 1-Day XRP Mining Contracts",
+      "description": "New short-term XRP mining contracts offer instant access, daily income, and $10 sign-up bonuses—no technical experience required. New short-term XRP mining contracts offer instant access, daily income, and $10 sign-up bonuses—no technical experience required.",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110480/0/en/PFMCrypto-Launches-1M-Rewards-Campaign-with-AI-Powered-1-Day-XRP-Mining-Contracts.html",
+      "timestamp": "2025-07-04T19:00:00Z"
+    },
     {
       "title": "House Committee on Financial Services Declares Week of July 14th As ‘Crypto Week’",
       "description": "The U.S. House is declaring the week of July 14th as “Crypto Week,” as three major crypto-related acts will be considered by Congress. According to a new announcement from the U.S. House Committee on Financial Services, the CLARITY Act, the Anti-CBDC Surveill…",
@@ -11,6 +109,7 @@
     },
     {
       "title": "Bitcoin Holds Above $110K: Smart Capital Flows into BTC Miner for Daily Stable USD Returns",
+      "currency": "USDC",
       "description": "As price speculation grows riskier, high-net-worth investors turn to BTC Miner’s cloud mining model for consistent income As price speculation grows riskier, high-net-worth investors turn to BTC Miner’s cloud mining model for consistent income",
       "source": "GlobeNewswire",
       "url": "https://www.globenewswire.com/news-release/2025/07/04/3110478/0/en/Bitcoin-Holds-Above-110K-Smart-Capital-Flows-into-BTC-Miner-for-Daily-Stable-USD-Returns.html",
@@ -43,13 +142,6 @@
       "source": "Cointelegraph",
       "url": "https://cointelegraph.com/news/us-senator-lummis-crypto-tax-plan-defi-finance-redefined",
       "timestamp": "2025-07-04T18:00:00Z"
-    },
-    {
-      "title": "Ethereum is powering Wall Street's future. The crypto scene at Cannes shows how far it's come",
-      "description": "Ethereum’s institutional adoption is accelerating, with BlackRock, Deutsche Bank, Coinbase, and Kraken all building directly on its rails.",
-      "source": "CNBC",
-      "url": "https://www.cnbc.com/2025/07/04/the-ethcc-crypto-scene-at-cannes-shows-how-far-ethereum-has-come.html",
-      "timestamp": "2025-07-04T17:49:59Z"
     },
     {
       "title": "Sweden Orders Police to Increase Seizures of Criminal Crypto Profits",
