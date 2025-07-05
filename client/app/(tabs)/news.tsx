@@ -43,7 +43,7 @@ export default function NewsScreen() {
   const fetchNews = async () => {
     try {
       setError(null);
-      const newsUrl = `${config.API_BASE_URL}/getJson`;
+      const newsUrl = `${config.API_BASE_AGENT_URL}/getJson`;
       console.log("Fetching news from:", newsUrl);
       const response = await fetch(newsUrl);
 
@@ -72,7 +72,7 @@ export default function NewsScreen() {
         errorMessage.includes("fetch")
       ) {
         setError(
-          `Cannot connect to news service. Check if the backend is running at ${config.API_BASE_URL}`
+          `Cannot connect to news service. Check if the backend is running at ${config.API_BASE_AGENT_URL}`
         );
       } else {
         setError(`Failed to fetch news: ${errorMessage}`);
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     paddingHorizontal: 20,
-    paddingTop: 100,
+    paddingTop: 50,
     paddingBottom: 20,
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0)",
@@ -269,11 +269,14 @@ const styles = StyleSheet.create({
     color: "#fff",
     textAlign: "center",
     marginBottom: 8,
+    paddingVertical: 20, // Ajout de padding pour éviter la troncature
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   subtitle: {
     fontSize: 16,
     color: "rgba(255, 255, 255, 0.7)",
     textAlign: "center",
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   loadingContainer: {
     flex: 1,
@@ -312,6 +315,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -322,11 +326,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0)",
+    paddingBottom: 20,
   },
   statsText: {
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.6)",
     textAlign: "center",
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   articlesList: {
     gap: 16,
@@ -336,11 +342,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    borderColor: "rgba(255, 255, 255, 0.65)",
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   articleHeader: {
     marginBottom: 12,
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   articleTitle: {
     fontSize: 18,
@@ -348,6 +355,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     lineHeight: 24,
     marginBottom: 12,
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   articleMeta: {
     flexDirection: "row",
@@ -355,6 +363,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexWrap: "wrap",
     gap: 8,
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   articleSource: {
     fontSize: 14,

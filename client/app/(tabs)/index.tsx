@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback } from "react";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { config } from "@/config/env";
 
 const { width } = Dimensions.get("window");
 
@@ -87,7 +88,7 @@ const fetchUserTokens = async (
     }
 
     // Utiliser l'IP locale au lieu de 127.0.0.1 pour iOS
-    const apiUrl = `http://172.31.49.110:5001/tokens/${endpoint}/${address}`;
+    const apiUrl = `${config.API_BASE_API_URL}/tokens/${endpoint}/${address}`;
     console.log(`Fetching tokens from: ${apiUrl}`);
 
     const response = await fetch(apiUrl);
