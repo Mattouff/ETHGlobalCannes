@@ -1,7 +1,14 @@
 {
-  "timestamp": "2025-07-05T14:09:12.632667",
-  "total_articles": 11,
+  "timestamp": "2025-07-05T19:51:58.572012",
+  "total_articles": 12,
   "articles": [
+    {
+      "title": "Ethereum is powering Wall Street's future. The crypto scene at Cannes shows how far it's come",
+      "description": "Ethereum’s institutional adoption is accelerating, with BlackRock, Deutsche Bank, Coinbase, and Kraken all building directly on its rails.",
+      "source": "CNBC",
+      "url": "https://www.cnbc.com/2025/07/04/the-ethcc-crypto-scene-at-cannes-shows-how-far-ethereum-has-come.html",
+      "timestamp": "2025-07-04T17:49:59Z"
+    },
     {
       "title": "USDC and DRML Miner Announce Strategic Alliance to Launch Next-Gen Cloud Mining and Stabilize the Crypto Market",
       "description": "The crypto industry is under constant pressure from price swings, rising costs, and growing regulation. Investors crave stability. Miners need better ways to secure profits. In response, USDC, the leading dollar-backed stablecoin, and DRML Miner, a pioneer in…",
