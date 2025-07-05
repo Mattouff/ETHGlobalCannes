@@ -10,7 +10,7 @@ import "react-native-reanimated";
 
 import "@walletconnect/react-native-compat";
 import { WagmiProvider } from "wagmi";
-import { mainnet, polygon, arbitrum } from "@wagmi/core/chains";
+import { mainnet, polygon, arbitrum, sepolia, base } from "@wagmi/core/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createAppKit,
@@ -18,11 +18,32 @@ import {
   AppKit,
 } from "@reown/appkit-wagmi-react-native";
 
+import { useColorScheme } from "@/hooks/useColorScheme";
+
 // 0. Setup queryClient
 const queryClient = new QueryClient();
 
 // 1. Get projectId at https://cloud.reown.com
 const projectId = "b6457b6ecb37f3252ed24919f9c34843";
+
+// Définition manuelle de Flow Mainnet
+const flowMainnet = {
+  id: 747,
+  name: "Flow Mainnet",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Flow",
+    symbol: "FLOW",
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://mainnet.evm.nodes.onflow.org"],
+    },
+  },
+  blockExplorers: {
+    default: { name: "Flow Explorer", url: "https://evm.flowscan.org" },
+  },
+} as const;
 
 // 2. Create config
 const metadata = {
@@ -36,7 +57,7 @@ const metadata = {
   },
 };
 
-const chains = [mainnet, polygon, arbitrum] as const;
+const chains = [sepolia, base, polygon, flowMainnet] as const;
 
 const wagmiConfig = defaultWagmiConfig({ chains, projectId, metadata });
 
@@ -47,8 +68,6 @@ createAppKit({
   defaultChain: mainnet, // Optional
   enableAnalytics: true, // Optional - defaults to your Cloud configuration
 });
-
-import { useColorScheme } from "@/hooks/useColorScheme";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

@@ -4,18 +4,157 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useAppKit, AppKitButton } from "@reown/appkit-wagmi-react-native";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
+import { useState, useEffect, useCallback } from "react";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 
 const { width } = Dimensions.get("window");
 
+// Types pour l'API
+interface Token {
+  contractAddress: string;
+  decimals: number;
+  name: string;
+  readableBalance: number;
+  symbol: string;
+  tokenBalance: string;
+}
+
+interface ApiResponse {
+  address: string;
+  chain: string;
+  native_balance: number;
+  success: boolean;
+  token_count: number;
+  tokens: Token[];
+  total_value_usd?: number;
+}
+
+function formatLargeNumber(num: number): string {
+  if (num >= 1_000_000)
+    return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "k";
+  return num.toFixed(2);
+}
+
+// Fonction pour obtenir le nom de la chaîne
+const getChainName = (chainId: number): string => {
+  switch (chainId) {
+    case 11155111:
+      return "Sepolia Testnet";
+    case 84532:
+      return "Base Sepolia";
+    case 80002:
+      return "Polygon Amoy";
+    case 747:
+      return "Flow Mainnet";
+    default:
+      return `Chain ${chainId}`;
+  }
+};
+const getChainEndpoint = (chainId: number): string | null => {
+  console.log("Actual getChainEndpoint call with chainId:", chainId);
+  switch (chainId) {
+    case 11155111: // Sepolia
+      return "ethereum";
+    case 8453: // Base Sepolia
+      return "base";
+    case 80002: // Polygon Amoy
+      return "polygon";
+    case 747: // Flow Mainnet
+      return "flow";
+    default:
+      return null;
+  }
+};
+
+// Service pour récupérer les tokens
+const fetchUserTokens = async (
+  address: string,
+  chainId: number
+): Promise<ApiResponse | null> => {
+  try {
+    const endpoint = getChainEndpoint(chainId);
+    if (!endpoint) {
+      console.log(`Chain ${chainId} not supported`);
+      return null;
+    }
+
+    // Utiliser l'IP locale au lieu de 127.0.0.1 pour iOS
+    const apiUrl = `http://172.31.49.110:5001/tokens/${endpoint}/${address}`;
+    console.log(`Fetching tokens from: ${apiUrl}`);
+
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data: ApiResponse = await response.json();
+    console.log(`API Response:`, data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching tokens:", error);
+    return null;
+  }
+};
+
 export default function HomeScreen() {
   const { open } = useAppKit();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
+  const chainId = useChainId();
+  const [tokens, setTokens] = useState<Token[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [totalValue, setTotalValue] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fonction pour charger les données
+  const loadTokenData = useCallback(async () => {
+    if (!address || !isConnected) return;
+
+    setLoading(true);
+    setError(null);
+
+    const data = await fetchUserTokens(address, chainId);
+
+    if (data && data.success) {
+      setTokens(data.tokens);
+      // Calculer la valeur totale basée sur les balances
+      const total = data.tokens.reduce((sum, token) => {
+        // Estimation simple: ETH = $2500, autres tokens = $1
+        const price = token.symbol === "ETH" ? 2500 : 1;
+        return sum + token.readableBalance * price;
+      }, 0);
+      setTotalValue(total);
+      setError(null);
+    } else {
+      setTokens([]);
+      setTotalValue(0);
+      setError("Failed to fetch token data. Please check your connection.");
+    }
+
+    setLoading(false);
+  }, [address, isConnected, chainId]);
+
+  // Charger les données au montage et changement de chaîne
+  useEffect(() => {
+    if (isConnected && address) {
+      loadTokenData();
+    }
+  }, [isConnected, address, chainId, loadTokenData]);
+
+  // Fonction de refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadTokenData();
+    setRefreshing(false);
+  }, [loadTokenData]);
 
   if (!isConnected) {
     return (
@@ -34,6 +173,23 @@ export default function HomeScreen() {
 
               <ThemedText style={styles.tagline}>
                 Smart Autonomous Scheduling for Financial Intents
+              </ThemedText>
+            </ThemedView>
+
+            <ThemedView style={styles.ctaSection}>
+              <TouchableOpacity
+                style={styles.connectButton}
+                onPress={() => open()}
+              >
+                <ThemedView style={styles.buttonContainer}>
+                  <ThemedText style={styles.connectButtonText}>
+                    Connect Wallet & Start
+                  </ThemedText>
+                </ThemedView>
+              </TouchableOpacity>
+
+              <ThemedText style={styles.supportText}>
+                Supported on Ethereum, Polygon, Arbitrum, Sepolia, Base & Flow
               </ThemedText>
             </ThemedView>
 
@@ -82,23 +238,6 @@ export default function HomeScreen() {
                 </ThemedView>
               </ThemedView>
             </ThemedView>
-
-            <ThemedView style={styles.ctaSection}>
-              <TouchableOpacity
-                style={styles.connectButton}
-                onPress={() => open()}
-              >
-                <ThemedView style={styles.buttonContainer}>
-                  <ThemedText style={styles.connectButtonText}>
-                    Connect Wallet & Start
-                  </ThemedText>
-                </ThemedView>
-              </TouchableOpacity>
-
-              <ThemedText style={styles.supportText}>
-                Supported on Ethereum, Polygon & Arbitrum
-              </ThemedText>
-            </ThemedView>
           </ScrollView>
         </ThemedView>
       </SafeAreaView>
@@ -112,6 +251,9 @@ export default function HomeScreen() {
         <ScrollView
           contentContainerStyle={styles.dashboardContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
           <ThemedView style={styles.dashboardHeader}>
             <ThemedText style={styles.welcomeTitle}>
@@ -120,6 +262,9 @@ export default function HomeScreen() {
 
             <ThemedView style={styles.walletSection}>
               <ThemedText style={styles.walletLabel}>Your Wallet</ThemedText>
+              <ThemedText style={styles.chainIndicator}>
+                Connected to {getChainName(chainId)}
+              </ThemedText>
               <ThemedView style={styles.walletButtonContainer}>
                 <AppKitButton />
               </ThemedView>
@@ -134,7 +279,9 @@ export default function HomeScreen() {
             <ThemedView style={styles.statsGrid}>
               <ThemedView style={styles.statCard}>
                 <ThemedText style={styles.statIcon}>💰</ThemedText>
-                <ThemedText style={styles.statValue}>$2,456.78</ThemedText>
+                <ThemedText style={styles.statValue}>
+                  ${formatLargeNumber(Number(totalValue.toFixed(2)))}
+                </ThemedText>
                 <ThemedText style={styles.statLabel}>
                   Total Portfolio
                 </ThemedText>
@@ -142,8 +289,10 @@ export default function HomeScreen() {
 
               <ThemedView style={styles.statCard}>
                 <ThemedText style={styles.statIcon}>🎯</ThemedText>
-                <ThemedText style={styles.statValue}>3</ThemedText>
-                <ThemedText style={styles.statLabel}>Active Intents</ThemedText>
+                <ThemedText style={styles.statValue}>
+                  {tokens.length}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Active Tokens</ThemedText>
               </ThemedView>
 
               <ThemedView style={styles.statCard}>
@@ -163,40 +312,75 @@ export default function HomeScreen() {
           <ThemedView style={styles.tokensSection}>
             <ThemedText style={styles.sectionTitle}>Your Tokens</ThemedText>
 
-            <ThemedView style={styles.tokensList}>
-              <ThemedView style={styles.tokenCard}>
-                <ThemedView style={styles.tokenHeader}>
-                  <ThemedText style={styles.tokenSymbol}>ETH</ThemedText>
-                  <ThemedText style={styles.tokenValue}>$1,234.56</ThemedText>
-                </ThemedView>
-                <ThemedView style={styles.tokenDetails}>
-                  <ThemedText style={styles.tokenAmount}>0.5 ETH</ThemedText>
-                  <ThemedText style={styles.tokenPrice}>$2,469.12</ThemedText>
-                </ThemedView>
+            {error && (
+              <ThemedView style={styles.errorContainer}>
+                <ThemedText style={styles.errorText}>{error}</ThemedText>
+                <TouchableOpacity
+                  style={styles.refreshButton}
+                  onPress={loadTokenData}
+                >
+                  <ThemedText style={styles.refreshButtonText}>
+                    Retry
+                  </ThemedText>
+                </TouchableOpacity>
               </ThemedView>
+            )}
 
-              <ThemedView style={styles.tokenCard}>
-                <ThemedView style={styles.tokenHeader}>
-                  <ThemedText style={styles.tokenSymbol}>USDC</ThemedText>
-                  <ThemedText style={styles.tokenValue}>$856.00</ThemedText>
-                </ThemedView>
-                <ThemedView style={styles.tokenDetails}>
-                  <ThemedText style={styles.tokenAmount}>856 USDC</ThemedText>
-                  <ThemedText style={styles.tokenPrice}>$1.00</ThemedText>
-                </ThemedView>
+            {loading ? (
+              <ThemedView style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#6366f1" />
+                <ThemedText style={styles.loadingText}>
+                  Loading tokens...
+                </ThemedText>
               </ThemedView>
+            ) : !error && tokens.length > 0 ? (
+              <ThemedView style={styles.tokensList}>
+                {tokens.map((token, index) => {
+                  // Prix estimé simple
+                  const estimatedPrice = token.symbol === "ETH" ? 2500 : 1;
+                  const totalValue = token.readableBalance * estimatedPrice;
 
-              <ThemedView style={styles.tokenCard}>
-                <ThemedView style={styles.tokenHeader}>
-                  <ThemedText style={styles.tokenSymbol}>MATIC</ThemedText>
-                  <ThemedText style={styles.tokenValue}>$366.22</ThemedText>
-                </ThemedView>
-                <ThemedView style={styles.tokenDetails}>
-                  <ThemedText style={styles.tokenAmount}>420 MATIC</ThemedText>
-                  <ThemedText style={styles.tokenPrice}>$0.87</ThemedText>
-                </ThemedView>
+                  return (
+                    <ThemedView
+                      key={`${token.contractAddress}-${index}`}
+                      style={styles.tokenCard}
+                    >
+                      <ThemedView style={styles.tokenHeader}>
+                        <ThemedText style={styles.tokenSymbol}>
+                          {token.symbol}
+                        </ThemedText>
+                        <ThemedText style={styles.tokenValue}>
+                          ${totalValue.toFixed(2)}
+                        </ThemedText>
+                      </ThemedView>
+                      <ThemedView style={styles.tokenDetails}>
+                        <ThemedText style={styles.tokenAmount}>
+                          {token.readableBalance.toFixed(4)} {token.symbol}
+                        </ThemedText>
+                        <ThemedText style={styles.tokenPrice}>
+                          ${estimatedPrice.toFixed(2)}
+                        </ThemedText>
+                      </ThemedView>
+                    </ThemedView>
+                  );
+                })}
               </ThemedView>
-            </ThemedView>
+            ) : !error && tokens.length === 0 ? (
+              <ThemedView style={styles.emptyContainer}>
+                <ThemedText style={styles.emptyText}>
+                  No tokens found for this wallet on{" "}
+                  {getChainEndpoint(chainId) || "this network"}
+                </ThemedText>
+                <TouchableOpacity
+                  style={styles.refreshButton}
+                  onPress={loadTokenData}
+                >
+                  <ThemedText style={styles.refreshButtonText}>
+                    Refresh
+                  </ThemedText>
+                </TouchableOpacity>
+              </ThemedView>
+            ) : null}
           </ThemedView>
         </ScrollView>
       </ThemedView>
@@ -237,6 +421,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logoText: {
+    paddingVertical: 30, // Ajout de padding pour éviter la troncature
     fontSize: 40,
     color: "#fff",
   },
@@ -245,15 +430,16 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#fff",
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: 2,
     letterSpacing: -1,
+    paddingVertical: 20, // Ajout de padding pour éviter la troncature
   },
   tagline: {
     fontSize: 18,
     color: "rgba(255, 255, 255, 0.8)",
     textAlign: "center",
     lineHeight: 26,
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
   },
   descriptionSection: {
     marginBottom: 50,
@@ -287,6 +473,7 @@ const styles = StyleSheet.create({
   featureIcon: {
     fontSize: 32,
     marginBottom: 12,
+    padding: 10,
   },
   featureTitle: {
     fontSize: 16,
@@ -304,7 +491,8 @@ const styles = StyleSheet.create({
   },
   ctaSection: {
     alignItems: "center",
-    marginTop: 40,
+    marginTop: 10,
+    marginBottom: 30,
     backgroundColor: "rgba(0, 0, 0, 0)",
   },
   connectButton: {
@@ -370,6 +558,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  chainIndicator: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.6)",
     marginBottom: 12,
     textAlign: "center",
   },
@@ -467,5 +661,57 @@ const styles = StyleSheet.create({
   tokenPrice: {
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.5)",
+  },
+
+  // Loading and empty states
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 16,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.6)",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  refreshButton: {
+    backgroundColor: "#6366f1",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  refreshButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  // Error state
+  errorContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    marginBottom: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ef4444",
+    textAlign: "center",
+    marginBottom: 20,
   },
 });
