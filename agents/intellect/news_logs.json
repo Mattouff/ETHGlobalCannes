@@ -1,13 +1,223 @@
 {
-  "timestamp": "2025-07-05T19:51:58.572012",
-  "total_articles": 12,
+  "timestamp": "2025-07-05T19:46:57.979399",
+  "total_articles": 42,
   "articles": [
     {
-      "title": "Ethereum is powering Wall Street's future. The crypto scene at Cannes shows how far it's come",
-      "description": "Ethereum’s institutional adoption is accelerating, with BlackRock, Deutsche Bank, Coinbase, and Kraken all building directly on its rails.",
+      "title": "Sweden Orders Police to Increase Seizures of Criminal Crypto Profits",
+      "description": "Sweden's Minister of Justice has called on the authorities to make greater use of forfeiture legislation to seize cryptocurrency.",
+      "source": "Decrypt",
+      "url": "https://decrypt.co/328687/sweden-orders-police-to-increase-seizures-of-criminal-crypto-profits",
+      "timestamp": "2025-07-04T17:46:02Z"
+    },
+    {
+      "title": "Are Whales in Trouble? BTC Derivatives Flash Mixed Warnings",
+      "description": "On-chain data shows that Bitcoin whales, specifically those holding between 100 and 1,000 BTC, have been accumulating in recent weeks.",
+      "source": "ZyCrypto",
+      "url": "https://zycrypto.com/are-whales-in-trouble-btc-derivatives-flash-mixed-warnings/",
+      "timestamp": "2025-07-04T17:38:12Z"
+    },
+    {
+      "title": "Ethereum’s comeback strategy — Foundation exec reveals what’s next",
+      "description": "Ethereum Foundation co-executive director Tomasz Szatankirk shares rare insights on Ethereum’s future, competition from Solana and others, staking challenges, and the next steps for the ecosystem.",
+      "source": "Cointelegraph",
+      "url": "https://cointelegraph.com/news/ethereum-foundation-executive-reveals",
+      "timestamp": "2025-07-04T17:33:31Z"
+    },
+    {
+      "title": "Is Bitcoin About to Enter the S&P 500? MicroStrategy Now Qualifies For Inclusion, Analyst Says",
+      "description": "Anyone invested in the S&P 500 may soon own Bitcoin indirectly. MicroStrategy (NASDAQ:MSTR) maxi Jeff Walton said Tuesday on X that the company had cleared...",
+      "source": "Yahoo Entertainment",
+      "url": "https://finance.yahoo.com/news/bitcoin-enter-p-500-microstrategy-173059733.html",
+      "timestamp": "2025-07-04T17:30:59Z"
+    },
+    {
+      "title": "Is Solana Ready to Pop? $175 Could Be the Launchpad to $300 SOL Price",
+      "description": "After trading sideways for much of Q2 2025, Solana’s recent price action and on-chain metrics suggest it could be nearing a pivotal breakout.",
+      "source": "ZyCrypto",
+      "url": "https://zycrypto.com/is-solana-ready-to-pop-175-could-be-the-launchpad-to-300-sol-price/",
+      "timestamp": "2025-07-04T17:14:30Z"
+    },
+    {
+      "title": "Top analyst who correctly predicted market rally turns bullish on rising tech stock",
+      "description": "Bitwise’s Matt Hougan expects Robinhood’s latest rollout to unlock 24/7, near-instant settlements.",
+      "source": "TheStreet",
+      "url": "https://www.thestreet.com/crypto/markets/robinhoods-bold-move-offers-openai-and-spacex-shares-",
+      "timestamp": "2025-07-04T17:14:22Z"
+    },
+    {
+      "title": "Ontario architect's seal forged by remote worker believed to be North Korean fraudster",
+      "description": "In mid-May, an online researcher posted a series of professional stamps on X bearing the names of engineers across the United States. The researcher claimed they were being used by North Korean remote workers. Among them was the seal of Canadian architect Ste…",
+      "source": "CBC News",
+      "url": "https://www.cbc.ca/television/the-fifth-estate/ontario-architect-seal-north-korean-remote-worker-1.7577096",
+      "timestamp": "2025-07-04T17:13:40Z"
+    },
+    {
+      "title": "Predicting how high Bitcoin’s price can go if it breaches its ATH",
+      "description": "The S2F had some really interesting insights for the world's largest cryptocurrency.",
+      "source": "Ambcrypto.com",
+      "url": "https://ambcrypto.com/?p=508096",
+      "timestamp": "2025-07-04T17:00:02Z"
+    },
+    {
+      "title": "Trump inaugural impersonators scammed donors out of crypto, feds say",
+      "description": "Scammers impersonating the Trump-Vance Inaugural Committee fraudulently stole hundreds of thousands of dollars in cryptocurrency, according to a filing.",
+      "source": "Biztoc.com",
+      "url": "https://biztoc.com/x/d960c6c62f2cc652",
+      "timestamp": "2025-07-04T16:55:00Z"
+    },
+    {
+      "title": "CONSULT A LICENCE CRYPTO FORENSIC RECOVERY EXPERTS: ALPHA SPY NEST",
+      "description": "After months of saving, I invested a substantial amount of my crypto assets into what appeared to be a promising online investment platform. The site was sleek, the representatives were convincing, and the returns seemed realistic at first. But within weeks, …",
+      "source": "Wolfram.com",
+      "url": "https://community.wolfram.com/groups/-/m/t/3491704",
+      "timestamp": "2025-07-04T16:52:57Z"
+    },
+    {
+      "title": "Trump inaugural impersonators scammed donors out of crypto, feds say",
+      "description": "Scammers impersonating the Trump-Vance Inaugural Committee fraudulently stole hundreds of thousands of dollars in cryptocurrency, according to a filing.",
       "source": "CNBC",
-      "url": "https://www.cnbc.com/2025/07/04/the-ethcc-crypto-scene-at-cannes-shows-how-far-ethereum-has-come.html",
-      "timestamp": "2025-07-04T17:49:59Z"
+      "url": "https://www.cnbc.com/2025/07/04/trump-cryptocurrency-ethereum-tokens.html",
+      "timestamp": "2025-07-04T16:50:52Z"
+    },
+    {
+      "title": "Ethereum DeFi Project Ondo Aims to Take on Robinhood With Jump Into Tokenized Stocks",
+      "description": "The decentralized finance platform is one of several entrants in the crowded tokenized real-world assets market, which is projected to be worth a few trillion dollars by 2030.",
+      "source": "Decrypt",
+      "url": "https://decrypt.co/328676/ethereum-defi-ondo-obinhood-tokenized-stocks",
+      "timestamp": "2025-07-04T16:46:02Z"
+    },
+    {
+      "title": "ALL4 Mining Projects 2X User Growth in July with Upgraded Mobile UX and Renewable-Powered Mining",
+      "description": "ALL4 Mining Aims to Double User Base in July as Mobile App Upgrades Drive Eco-Friendly Mining Adoption ALL4 Mining Aims to Double User Base in July as Mobile App Upgrades Drive Eco-Friendly Mining Adoption",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110455/0/en/ALL4-Mining-Projects-2X-User-Growth-in-July-with-Upgraded-Mobile-UX-and-Renewable-Powered-Mining.html",
+      "timestamp": "2025-07-04T16:30:00Z"
+    },
+    {
+      "title": "Mysterious Bitcoin Whale Moves $8 Billion in 'Largest Daily' Transfer of Old BTC in History",
+      "description": "The sudden movements of the crypto fortune left analysts befuddled.",
+      "source": "Decrypt",
+      "url": "https://decrypt.co/328678/mysterious-bitcoin-whale-8-billion-largest-daily-move-btc-history",
+      "timestamp": "2025-07-04T16:12:04Z"
+    },
+    {
+      "title": "Ondo Finance acquires SEC-registered broker-dealer, eyes tokenized securities",
+      "description": "Ondo Finance has acquired SEC-registered Oasis Pro, strengthening its foothold in the US tokenized securities space as it ramps up real-world asset offerings.",
+      "source": "Cointelegraph",
+      "url": "https://cointelegraph.com/news/ondo-finance-acquires-oasis-pro-tokenized-securities-us",
+      "timestamp": "2025-07-04T16:04:19Z"
+    },
+    {
+      "title": "Bitcoin Breakout Is A Trap—Analyst Predicts Pain Before $160,000 Surge",
+      "description": "Bitcoin may be breaking out—but don’t celebrate yet. Crypto analyst Cristian Chifoi warns that the current move is a deceptive setup likely to trap bullish traders before Bitcoin eventually surges toward $160,000. In his latest YouTube video titled “Bitcoin i…",
+      "source": "newsBTC",
+      "url": "http://www.newsbtc.com/bitcoin-news/bitcoin-breakout-trap-pain-before-160000/",
+      "timestamp": "2025-07-04T16:00:19Z"
+    },
+    {
+      "title": "Ethereum: After $230M in withdrawals, key metrics say ETH prices could…",
+      "description": "Institutional demand grows while ETH faces resistance at $2,642 amid declining derivatives activity.",
+      "source": "Ambcrypto.com",
+      "url": "https://ambcrypto.com/?p=508061",
+      "timestamp": "2025-07-04T16:00:02Z"
+    },
+    {
+      "title": "Can ChatGPT predict Bitcoin’s next move?",
+      "description": "While it’s not built for real-time calls, ChatGPT can still support smarter Bitcoin trading decisions when paired with the right data and well-crafted prompts.",
+      "source": "Cointelegraph",
+      "url": "https://cointelegraph.com/explained/can-chatgpt-predict-bitcoins-next-move",
+      "timestamp": "2025-07-04T15:50:00Z"
+    },
+    {
+      "title": "Members Capital Management Completes Initial Deployment of Tokenised Reinsurance Fund",
+      "description": "First of its kind institutional-grade fund opens access to a new and growing class of traditional and digital asset-native allocators HAMILTON, Bermuda, July 4, 2025 /PRNewswire/ -- Members Capital Management (\"MembersCap\"), a Bermuda-regulated investment man…",
+      "source": "PR Newswire UK",
+      "url": "https://www.prnewswire.co.uk/news-releases/members-capital-management-completes-initial-deployment-of-tokenised-reinsurance-fund-302498308.html",
+      "timestamp": "2025-07-04T15:41:00Z"
+    },
+    {
+      "title": "Hackers Behind $140M Brazil Banking Heist Turn to Crypto to Launder Their Loot",
+      "description": "ZachXBT estimates that between $30 million and $40 million has been swapped to crypto through OTC desks and exchanges.",
+      "source": "CoinDesk",
+      "url": "https://www.coindesk.com/business/2025/07/04/hackers-behind-usd140m-brazil-banking-heist-turn-to-crypto-to-launder-their-loot",
+      "timestamp": "2025-07-04T15:08:41Z"
+    },
+    {
+      "title": "PS Miner, the world’s leading cloud mining company, announces the launch of a more advanced free mobile cloud mining app",
+      "description": "Eastleigh, England, UK, July 04, 2025 (GLOBE NEWSWIRE) -- Nowadays, as the cryptocurrency industry gradually moves from hype to actual application, investors are also more inclined to find simple and convenient ways to participate without having to face the c…",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110419/0/en/PS-Miner-the-world-s-leading-cloud-mining-company-announces-the-launch-of-a-more-advanced-free-mobile-cloud-mining-app.html",
+      "timestamp": "2025-07-04T15:07:00Z"
+    },
+    {
+      "title": "Wakanda Not Forever: Plans For Futuristic African City Fall Apart",
+      "description": "The city plan was scrapped after years of delays and reported mismanagement.",
+      "source": "Newsweek",
+      "url": "https://www.newsweek.com/africa-wakanda-plans-fall-apart-2094772",
+      "timestamp": "2025-07-04T15:01:26Z"
+    },
+    {
+      "title": "Congress sets mid-July as ‘crypto week’ for passage of GENIUS, CLARITY Acts",
+      "description": "Crypto czar Sacks believes the GENIUS Act will pass without amendments at the House.",
+      "source": "Ambcrypto.com",
+      "url": "https://ambcrypto.com/congress-sets-mid-july-as-crypto-week-for-passage-of-the-genius-clarity-acts/",
+      "timestamp": "2025-07-04T15:00:34Z"
+    },
+    {
+      "title": "XRP Healthcare M&A Holding Inc. Clarifies Corporate Structure and Operational Independence Ahead of Proposed TSXV Qualifying Transaction",
+      "description": "This news release does not constitute an offer to sell or a solicitation of an offer to buy any securities of the Company in any jurisdiction, including the United States. DUBAI, UAE, July 4, 2025 /PRNewswire/ -- XRP Healthcare M&A Holding Inc. (Registration …",
+      "source": "PR Newswire UK",
+      "url": "https://www.prnewswire.co.uk/news-releases/xrp-healthcare-ma-holding-inc-clarifies-corporate-structure-and-operational-independence-ahead-of-proposed-tsxv-qualifying-transaction-302498294.html",
+      "timestamp": "2025-07-04T14:57:00Z"
+    },
+    {
+      "title": "EarnMining Unveils Advanced Bitcoin Cloud Mining Platform with Free Bonus and Daily Earnings",
+      "description": "Official Launch Sets New Standard for Accessible Bitcoin Mining Official Launch Sets New Standard for Accessible Bitcoin Mining",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110417/0/en/EarnMining-Unveils-Advanced-Bitcoin-Cloud-Mining-Platform-with-Free-Bonus-and-Daily-Earnings.html",
+      "timestamp": "2025-07-04T14:55:00Z"
+    },
+    {
+      "title": "How a $123M crypto scam in Australia laundered millions through a ‘legit’ business",
+      "description": "A $123-million crypto scam used a cash-in-transit company and a classic car dealership for crypto money laundering. Find out how the Australian crypto investigation brought the scheme to light.",
+      "source": "Cointelegraph",
+      "url": "https://cointelegraph.com/explained/how-a-123m-crypto-scam-in-australia-laundered-millions-through-a-legit-business",
+      "timestamp": "2025-07-04T14:35:00Z"
+    },
+    {
+      "title": "FIND MINING officially announced the launch of a zero-threshold cloud mining platform to help global users easily and Guaranteed earn passive income from BTC, DOGE, and XRP",
+      "description": "FIND MINING, the world's leading cloud mining platform, is breaking this situation and providing safe, flexible and low-threshold cloud mining solutions for holders of mainstream crypto assets such as Bitcoin (BTC), Ethereum (ETH), Ripple (XRP) and Dogecoin (…",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110412/0/en/FIND-MINING-officially-announced-the-launch-of-a-zero-threshold-cloud-mining-platform-to-help-global-users-easily-and-Guaranteed-earn-passive-income-from-BTC-DOGE-and-XRP.html",
+      "timestamp": "2025-07-04T14:31:00Z"
+    },
+    {
+      "title": "CZ to merge ‘Wall Street and blockchain’ alongside Goldman, DTCC, Citadel",
+      "description": "Former Binance CEO Changpeng (CZ) Zhao’s YZi Labs has invested in Digital Asset, the institutional blockchain platform Canton Network developer. YZi Labs joins a $135 million Series E round that was first announced on June 24 and includes participation from f…",
+      "source": "CryptoSlate",
+      "url": "https://cryptoslate.com/cz-to-merge-wall-street-and-blockchain-through-canton-network-alongside-goldman-dtcc-citadel/",
+      "timestamp": "2025-07-04T14:30:53Z"
+    },
+    {
+      "title": "FTX estate asks court to freeze payouts in ‘restricted’ countries",
+      "description": "FTX’s bankruptcy estate has asked the court to hold creditor distributions in countries with ambiguous or restrictive cryptocurrency regulations, pending resolution.",
+      "source": "Cointelegraph",
+      "url": "https://cointelegraph.com/news/ftx-estate-judge-freeze-payout-countries-crypto-ban",
+      "timestamp": "2025-07-04T14:25:16Z"
+    },
+    {
+      "title": "You Can Buy a Martian Meteorite With Bitcoin—If You Have Upwards of $4 Million",
+      "description": "Sotheby’s will auction massive Martian meteorite NWA 16788, and is accepting Bitcoin, Ethereum, and USDC bids for a piece of the red planet.",
+      "source": "Decrypt",
+      "url": "https://decrypt.co/328545/you-can-buy-martian-meteorite-bitcoin-4-million",
+      "timestamp": "2025-07-04T14:23:38Z"
+    },
+    {
+      "title": "Snaky Way ($AKE) Explodes Into Presale with AI Buybacks, Influencer Partnerships & Blockchain Games",
+      "description": "The cryptocurrency landscape is always evolving, with new projects popping up to capture the attention of investors, whether they are utility or meme-based. Among the latest entrants, Snaky Way ($AKE) is quickly making headlines with its explosive presale, st…",
+      "source": "newsBTC",
+      "url": "http://www.newsbtc.com/news/snaky-way-explodes-into-presale/",
+      "timestamp": "2025-07-04T14:18:44Z"
     },
     {
       "title": "USDC and DRML Miner Announce Strategic Alliance to Launch Next-Gen Cloud Mining and Stabilize the Crypto Market",
