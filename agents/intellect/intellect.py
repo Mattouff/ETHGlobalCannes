@@ -40,7 +40,6 @@ class HealthResponse(Model):
     address: str
     timestamp: str
 
-
 class PopularIntentsResponse(Model):
     popular_intents: list[dict[str, Any]]
     total_count: int
