@@ -1,4 +1,29 @@
-# 📰 Agent News & 🧠 IntentFi - Suite d'Agents Intelligents
+# 📰 Agent News#### 🌐 API REST Intégrée + Cache Anti-Doublons
+- **Endpoint POST /news** : Récupération de news à la demande via API REST
+- **Endpoint GET /health** : Monitoring de l'état de l'agent
+- **Cache intelligent** : Évite d'afficher les mêmes actualités plusieurs fois
+- **Récupération automatique** : Surveillance continue toutes les 3 secondes avec filtrage
+- **"No new information"** : Retourne ce message s'il n'y a pas de nouvelles actualités
+- **Logging intelligent** : Journalis### 📰 Agent News
+L'agent fournit un logging détaillé avec cache anti-doublons :
+```bash
+🚀 News Agent démarré - news_agent
+📍 Adresse: agent1qvk...
+🌐 API REST disponible sur http://localhost:8001
+📋 Endpoints: POST /news, GET /health
+⏰ Récupération automatique toutes les 3 secondes
+
+🔄 Récupération automatique des news...
+📰 3 NOUVELLES ACTUALITÉS:
+{JSON des nouvelles actualités}
+
+🔄 Récupération automatique des news...
+📰 No new information
+
+🌐 API Call - Requête news via REST
+🔍 Query: bitcoin regulation, Type: crypto
+✅ 2 nouvelles actualités retournées via REST API
+```lée de toutes les activités IntentFi - Suite d'Agents Intelligents
 
 ## 🎯 Vue d'ensemble
 
@@ -30,10 +55,14 @@ L'agent est optimisé pour détecter les actualités susceptibles d'influencer l
 - **Aspects légaux** : Interdictions, régulations gouvernementales
 - **Personnalités influentes** : Trump, Musk et leurs déclarations
 
-#### 🤖 Intelligence de Recherche
-- **Détection automatique** : Reconnaissance des mots-clés dans les messages
+#### 🤖 Intelligence de Recherche + Cache Anti-Doublons
+- **Recherche flexible** : Support des paramètres `query` et `search_type`
+- **Types de recherche prédéfinis** : crypto, tech, general
 - **Recherche avancée** : Support de la syntaxe NewsAPI (AND, OR, NOT, +, -)
-- **Recherche personnalisée** : Format `"news search: votre_requête"`
+- **Cache intelligent** : Mémorisation des articles déjà affichés (basé sur titre + URL)
+- **Filtrage automatique** : Seules les nouvelles actualités sont retournées
+- **Nettoyage automatique** : Cache limité à 1000 articles avec rotation
+- **Fallback intelligent** : Données simulées en cas d'erreur API
 
 ### 🧠 Agent IntentFi (`intellect.py`)
 
@@ -100,20 +129,34 @@ python-dotenv==1.0.0
 
 ### Agent News (`news.py`)
 
-#### Clé API NewsAPI
-```python
-api_key = "YOUR_API_KEY"
+#### Configuration de l'API NewsAPI
+Utilisation sécurisée via variables d'environnement :
+```bash
+# Fichier .env
+NEWSAPI_KEY="YOUR_API_KEY"
 ```
 
-#### Paramètres de l'agent
+#### Paramètres de l'agent (avec cache et récupération automatique)
 ```python
 agent = Agent(
     name="news_agent",
     seed="news_secret_seed_phrase",
     port=8001,
-    endpoint=["http://localhost:8001/submit"]
+    endpoint=["http://localhost:8001/submit"]  # Communication inter-agents
 )
+
+# Cache global pour éviter les doublons
+displayed_news_cache = set()
 ```
+
+#### Endpoints REST disponibles
+- `POST http://localhost:8001/news` - Récupération de news (avec filtrage anti-doublons)
+- `GET http://localhost:8001/health` - Statut de l'agent
+
+#### Récupération automatique
+- **Fréquence** : Toutes les 3 secondes
+- **Filtrage** : Seules les nouvelles actualités sont affichées
+- **Logs** : "No new information" si aucune nouveauté
 
 ### Agent IntentFi (`intellect.py`)
 
@@ -156,30 +199,79 @@ cd /Users/matteo/ETHGlobalCannes/agents/intellect
 /Users/matteo/ETHGlobalCannes/.venv/bin/python intellect.py
 ```
 
-### 💬 Commandes Agent News
+### 💬 API REST Agent News
 
-#### News générales
-```
-"news" ou "actualités"
-```
-
-#### Recherche spécifique
-```
-"news search: votre_recherche"
-
-Exemples :
-- "news search: bitcoin"
-- "news search: SEC OR ETF"
-- "news search: +regulation -price"
-- "news search: BlackRock AND bitcoin"
+#### Récupération de news (POST /news)
+```bash
+curl -X POST http://localhost:8001/news \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "bitcoin regulation",
+    "search_type": "crypto"
+  }'
 ```
 
-#### Détection automatique de thèmes
-L'agent détecte automatiquement :
-- **Crypto** : `bitcoin`, `crypto`, `ethereum`, `blockchain`
-  → Recherche optimisée pour l'impact sur les cours
-- **Tech** : `ai`, `intelligence`, `technology`
-  → Actualités technologiques générales
+#### Paramètres de recherche
+```json
+{
+  "query": "votre_recherche_personnalisée",    // Optionnel
+  "search_type": "crypto"                      // crypto, tech, general
+}
+```
+
+#### Types de recherche prédéfinis avec cache anti-doublons
+- **"crypto"** : Actualités optimisées pour l'impact marché crypto
+- **"tech"** : Actualités technologiques (AI, innovation)  
+- **"general"** : Actualités générales (top headlines US)
+
+**⚠️ Important** : Chaque appel REST filtre automatiquement les articles déjà retournés précédemment
+
+#### Exemples de réponses avec cache anti-doublons
+
+**1er appel** - 5 nouvelles actualités :
+```json
+{
+  "news": [
+    {
+      "title": "Bitcoin ETF Approval...",
+      "description": "The SEC has...",
+      "url": "https://...",
+      "source": "Reuters",
+      "published_at": "2025-07-05T..."
+    }
+  ],
+  "total_articles": 5,
+  "timestamp": "2025-07-05T..."
+}
+```
+
+**2ème appel immédiat** - Aucune nouvelle :
+```json
+{
+  "news": [
+    {
+      "title": "No new information",
+      "description": "No new articles found since last request",
+      "url": "",
+      "source": "System",
+      "published_at": "2025-07-05T..."
+    }
+  ],
+  "total_articles": 0,
+  "timestamp": "2025-07-05T..."
+}
+```
+
+**3ème appel plus tard** - 2 nouvelles actualités :
+```json
+{
+  "news": [
+    /* Seulement les 2 nouveaux articles */
+  ],
+  "total_articles": 2,
+  "timestamp": "2025-07-05T..."
+}
+```
 
 ### 🧠 API IntentFi
 
@@ -217,22 +309,29 @@ L'agent détecte automatiquement :
 
 ### 📰 Agent News
 
-#### Modèle NewsData
+#### Modèles REST
 ```python
+class NewsRequest(Model):
+    query: str = None           # Recherche personnalisée (optionnel)
+    search_type: str = "crypto" # crypto, tech, general
+
 class NewsData(Model):
     title: str           # Titre de l'article
     description: str     # Description/résumé
     url: str            # URL de l'article
     source: str         # Source (ex: Reuters, Bloomberg)
     published_at: str   # Date de publication (ISO format)
-```
 
-#### Réponse complète
-```python
 class NewsResponse(Model):
     news: list[NewsData]    # Liste des articles
     total_articles: int     # Nombre total d'articles
     timestamp: str          # Horodatage de la requête
+
+class HealthResponse(Model):
+    status: str        # Statut de l'agent
+    agent: str         # Nom de l'agent
+    address: str       # Adresse uAgents
+    timestamp: str     # Timestamp
 ```
 
 ### 🧠 Agent IntentFi
@@ -269,17 +368,45 @@ class HealthResponse(Model):
 ## 🔍 Exemples d'utilisation
 
 ### 📰 Agent News - Recherche crypto avec impact marché
-```python
-# Recherche automatique optimisée pour crypto
-query = "(cryptocurrency OR bitcoin OR ethereum OR blockchain) AND (regulation OR SEC OR ETF OR adoption OR institutional OR ban OR legal OR government OR fed OR inflation OR tether OR binance OR coinbase OR grayscale OR blackrock OR microstrategy OR Trump OR Musk)"
+```bash
+# Recherche crypto par défaut via REST API
+curl -X POST http://localhost:8001/news \
+  -H "Content-Type: application/json" \
+  -d '{"search_type": "crypto"}'
+
+# Recherche personnalisée optimisée
+curl -X POST http://localhost:8001/news \
+  -H "Content-Type: application/json" \
+  -d '{"query": "(cryptocurrency OR bitcoin OR ethereum) AND (regulation OR SEC OR ETF)"}'
 ```
 
-#### Messages d'exemple News
-1. `"news"` → Actualités générales US
-2. `"actualités crypto"` → Actualités crypto avec impact marché
-3. `"news search: ETF bitcoin"` → Recherche spécifique ETF Bitcoin
-4. `"news search: BlackRock OR MicroStrategy"` → Adoption institutionnelle
-5. `"news search: +SEC -price"` → Actualités SEC sans mention de prix
+#### Exemples de requêtes REST News
+```bash
+# 1. Actualités crypto par défaut
+curl -X POST http://localhost:8001/news \
+  -H "Content-Type: application/json" \
+  -d '{"search_type": "crypto"}'
+
+# 2. ETF Bitcoin spécifique
+curl -X POST http://localhost:8001/news \
+  -H "Content-Type: application/json" \
+  -d '{"query": "ETF bitcoin SEC"}'
+
+# 3. Adoption institutionnelle
+curl -X POST http://localhost:8001/news \
+  -H "Content-Type: application/json" \
+  -d '{"query": "BlackRock OR MicroStrategy OR Tesla bitcoin"}'
+
+# 4. Actualités tech
+curl -X POST http://localhost:8001/news \
+  -H "Content-Type: application/json" \
+  -d '{"search_type": "tech"}'
+
+# 5. Actualités générales
+curl -X POST http://localhost:8001/news \
+  -H "Content-Type: application/json" \
+  -d '{"search_type": "general"}'
+```
 
 ### 🧠 Agent IntentFi - Cas d'usage
 
@@ -341,18 +468,20 @@ curl http://localhost:8001/intents/popular
 
 ### 📰 Agent News
 
-#### Données simulées (fallback)
-En cas d'erreur API, l'agent utilise des données simulées réalistes :
-- Actualités SEC et ETF Bitcoin
-- Décisions de la Fed et impact crypto
-- Adoptions institutionnelles
-- Régulations européennes
-- Rapports de transparence Tether
+#### Système de cache intelligent
+- **Cache global** : `displayed_news_cache = set()` mémorise les articles déjà affichés
+- **Identifiant unique** : Basé sur `titre + URL` de chaque article
+- **Filtrage automatique** : Les articles déjà vus ne sont plus retournés
+- **Nettoyage automatique** : Cache limité à 1000 articles, rotation des 500 plus récents
+- **Séparation des modes** :
+  - **Récupération automatique** : Filtre les doublons (`filter_displayed=True`)
+  - **API REST** : Filtre également les doublons pour éviter la surcharge frontend
 
-#### Gestion d'erreurs
-- **Fallback automatique** vers données simulées
-- **Logging détaillé** des erreurs API
-- **Retry automatique** toutes les 5 minutes
+#### Gestion des nouvelles actualités
+- **Récupération automatique** : Affiche "No new information" si aucune nouveauté
+- **API REST** : Retourne un objet JSON avec "No new information" si aucune nouveauté
+- **PageSize optimisé** : Récupère 10 articles, filtre les doublons, retourne les nouveaux
+- **Fallback automatique** : Données simulées avec ID unique en cas d'erreur API
 
 ### 🧠 Agent IntentFi
 
@@ -383,14 +512,16 @@ L'agent teste automatiquement :
 ## 📊 Surveillance et logs
 
 ### 📰 Agent News
-L'agent fournit un logging détaillé :
-```
-📰 NEWS À LA UNE:
-{
-  "news": [...],
-  "total_articles": 5,
-  "timestamp": "2025-07-05T..."
-}
+L'agent fournit un logging détaillé via API REST :
+```bash
+� News REST API démarré - Agent news_agent
+📍 Adresse: agent1qvk...
+🌐 API REST disponible sur http://localhost:8001
+📋 Endpoints: POST /news, GET /health
+
+🌐 API Call - Requête news via REST
+🔍 Query: bitcoin regulation, Type: crypto
+✅ 5 articles retournés via REST API
 ```
 
 ### 🧠 Agent IntentFi
@@ -418,10 +549,12 @@ Logging avancé des recommandations :
 - `sortBy=publishedAt` : Tri par date de publication
 - `country=us` : Pays pour les actualités générales
 
-#### Agent uAgents
-- `period=300.0` : Intervalle de récupération (5 minutes)
+#### Agent uAgents (News - Hybrid : REST + Auto + Cache)
 - `port=8001` : Port d'écoute de l'agent
-- `endpoint` : Points d'accès pour les messages
+- `endpoint=["http://localhost:8001/submit"]` : Communication inter-agents conservée
+- `period=3.0` : Récupération automatique toutes les 3 secondes
+- `displayed_news_cache` : Cache global anti-doublons
+- `filter_displayed` : Filtrage intelligent des articles déjà vus
 
 ### 🧠 Agent IntentFi
 
@@ -444,9 +577,10 @@ Logging avancé des recommandations :
 ## 🔐 Sécurité
 
 ### 📰 Agent News
-- Clé API NewsAPI sécurisée via variables d'environnement
-- Validation des entrées utilisateur
-- Gestion sécurisée des erreurs API
+- API REST sécurisée avec clés stockées dans `.env`
+- Validation des paramètres d'entrée (query, search_type)
+- Gestion sécurisée des erreurs API avec fallback
+- Timeout et logging pour surveillance
 
 ### 🧠 Agent IntentFi
 - Communication sécurisée avec Claude AI via uAgents
@@ -457,12 +591,17 @@ Logging avancé des recommandations :
 ## 📈 Optimisations futures
 
 ### 📰 Agent News
-- Configuration externe des clés API via .env ✅
-- Cache des résultats pour éviter les appels répétés
-- Analyse de sentiment des actualités
-- Intégration avec d'autres sources de news
-- Notification push pour actualités critiques
-- Dashboard web pour visualisation
+- [x] Configuration externe des clés API via .env 
+- [x] API REST pour intégration externe (Postman, curl, frontend)
+- [x] Recherche flexible avec paramètres query et search_type
+- [x] Cache anti-doublons intelligent pour éviter la surcharge frontend
+- [x] Récupération automatique avec filtrage des actualités déjà vues
+- [x] Message "No new information" quand aucune nouveauté
+- [ ] Analyse de sentiment des actualités
+- [ ] Intégration avec d'autres sources de news
+- [ ] Notification push pour actualités critiques
+- [ ] Dashboard web pour visualisation
+- [ ] Persistance du cache entre redémarrages
 
 ### 🧠 Agent IntentFi
 - [ ] Intégration avec plus de chaînes blockchain
@@ -499,8 +638,12 @@ Pour toute question ou amélioration :
 ### Dépannage courant
 
 #### Agent News
-- **Pas d'articles** : Vérifier la clé API NewsAPI ou changer de pays/requête
-- **Erreur timeout** : API NewsAPI surchargée, utilisation des données fallback
+- **"No new information"** : Vérifier s'il y a vraiment de nouvelles actualités ou si le cache fonctionne correctement
+- **Cache trop volumineux** : Le cache se nettoie automatiquement à 1000 articles
+- **Pas d'articles retournés** : Vérifier la clé API NewsAPI dans `.env` ou ajuster les paramètres de recherche
+- **Erreur de connexion** : API NewsAPI surchargée, utilisation automatique des données fallback
+- **Port 8001 occupé** : Changer le port dans le code ou arrêter le processus existant
+- **Doublons malgré le cache** : Redémarrer l'agent pour vider le cache en mémoire
 
 #### Agent IntentFi  
 - **Claude AI indisponible** : Système de fallback automatique activé
