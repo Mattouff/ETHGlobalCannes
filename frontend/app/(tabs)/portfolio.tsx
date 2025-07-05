@@ -27,8 +27,8 @@ export default function PortfolioScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <ThemedText type="title">Portfolio</ThemedText>
-          <ThemedText style={styles.subtitle}>
+          <ThemedText style={CommonStyles.headerTitle}>Portfolio</ThemedText>
+          <ThemedText style={CommonStyles.headerSubtitle}>
             Cross-chain asset overview
           </ThemedText>
         </View>
