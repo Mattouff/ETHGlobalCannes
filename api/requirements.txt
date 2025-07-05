@@ -1,4 +1,13 @@
-# Add python-dotenv to requirements
-flask
-requests
-python-dotenv
+# IntentFi CCIP API Requirements
+# Core dependencies
+Flask==3.0.0
+requests==2.31.0
+web3==6.11.1
+python-dotenv==1.0.0
+
+# Optional production dependencies
+# gunicorn==21.2.0  # For production deployment
+# pytest==7.4.0    # For testing
+# redis==5.0.1      # For caching and rate limiting
+# psycopg2==2.9.9   # For PostgreSQL database
+# celery==5.3.4     # For background tasks
