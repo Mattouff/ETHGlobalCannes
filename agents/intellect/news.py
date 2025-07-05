@@ -14,6 +14,60 @@ load_dotenv()
 # Cache global pour éviter de réafficher les mêmes news
 displayed_news_cache = set()
 
+# Fichier de log JSON pour les articles uniquement
+ARTICLES_FILE = "news_logs.json"
+
+def save_articles_to_json(new_articles: list):
+    """Sauvegarde les nouveaux articles au début du fichier JSON (sans doublons)"""
+    try:
+        # Lire les articles existants
+        existing_data = {"articles": []}
+        if os.path.exists(ARTICLES_FILE):
+            try:
+                with open(ARTICLES_FILE, 'r', encoding='utf-8') as f:
+                    existing_data = json.load(f)
+                    if "articles" not in existing_data:
+                        existing_data = {"articles": []}
+            except (json.JSONDecodeError, FileNotFoundError):
+                existing_data = {"articles": []}
+        
+        # Créer un set des articles existants pour éviter les doublons (basé sur titre + url)
+        existing_keys = {f"{article.get('title', '')}-{article.get('url', '')}" for article in existing_data["articles"]}
+        
+        # Filtrer les nouveaux articles pour éviter les doublons
+        truly_new_articles = []
+        for article in new_articles:
+            article_key = f"{article.get('title', '')}-{article.get('url', '')}"
+            if article_key not in existing_keys:
+                truly_new_articles.append(article)
+        
+        # Ajouter seulement les vrais nouveaux articles au début (plus récent en premier)
+        all_articles = truly_new_articles + existing_data["articles"]
+        
+        # Limiter à 100 articles pour éviter un fichier trop volumineux
+        if len(all_articles) > 100:
+            all_articles = all_articles[:100]
+        
+        # Préparer la structure finale simplifiée
+        articles_data = {
+            "timestamp": datetime.now().isoformat(),
+            "total_articles": len(all_articles),
+            "articles": all_articles
+        }
+        
+        # Écrire les articles mis à jour
+        with open(ARTICLES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(articles_data, f, indent=2, ensure_ascii=False)
+            
+    except Exception as e:
+        print(f"Erreur lors de la sauvegarde des articles: {e}")
+
+def log_to_json(event_type: str, data: dict = None, message: str = None):
+    """Log les événements dans un fichier JSON pour monitoring (système interne seulement)"""
+    # Cette fonction est maintenant utilisée seulement pour les événements système
+    # Les articles sont gérés par save_articles_to_json()
+    pass
+
 # instantiate agent
 agent = Agent(
     name="news_agent",
@@ -138,7 +192,7 @@ async def startup_function(ctx: Context):
     ctx.logger.info(f"⏰ Récupération automatique toutes les 3 secondes")
 
 # Handler pour récupérer et afficher les news
-@agent.on_interval(period=300.0)  # Toutes les 5 minutes
+@agent.on_interval(period=3.0)  # Toutes les 5 minutes
 async def fetch_and_display_news(ctx: Context):
     """Récupère les news toutes les 5 minutes et affiche seulement les nouvelles"""
     ctx.logger.info("🔄 Récupération automatique des news...")
@@ -154,6 +208,7 @@ async def fetch_and_display_news(ctx: Context):
         # Si pas de nouvelles actualités, ne rien afficher
         if not raw_news or (len(raw_news) == 1 and raw_news[0].get("title", "").startswith("ERROR")):
             ctx.logger.info("📰 No new information")
+            # Ne pas logger dans JSON pour éviter le spam - juste afficher dans la console
             return
         
         # Formater les données (seulement les nouvelles)
@@ -174,6 +229,19 @@ async def fetch_and_display_news(ctx: Context):
             total_articles=len(news_data),
             timestamp=datetime.now().isoformat()
         )
+        
+        # Sauvegarder les articles dans le fichier JSON (format complet)
+        articles_for_json = [
+            {
+                "title": n.title,
+                "description": n.description,
+                "source": n.source,
+                "url": n.url,
+                "timestamp": n.published_at
+            } 
+            for n in news_data
+        ]
+        save_articles_to_json(articles_for_json)
         
         # Afficher en JSON seulement s'il y a de nouvelles actualités
         news_json = json.dumps(news_response.dict(), indent=2, ensure_ascii=False)
@@ -257,6 +325,7 @@ async def get_news_rest(ctx: Context, req: NewsRequest) -> NewsResponse:
         
         # Si pas de nouvelles actualités, retourner "No new information"
         if not raw_news or (len(raw_news) == 1 and raw_news[0].get("title", "").startswith("ERROR")):
+            # Retourner "No new information" sans logger (évite le spam dans les logs JSON)
             return NewsResponse(
                 news=[NewsData(
                     title="No new information",

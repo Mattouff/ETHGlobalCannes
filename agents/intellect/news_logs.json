@@ -1,0 +1,83 @@
+{
+  "timestamp": "2025-07-05T14:09:12.632667",
+  "total_articles": 11,
+  "articles": [
+    {
+      "title": "USDC and DRML Miner Announce Strategic Alliance to Launch Next-Gen Cloud Mining and Stabilize the Crypto Market",
+      "description": "The crypto industry is under constant pressure from price swings, rising costs, and growing regulation. Investors crave stability. Miners need better ways to secure profits. In response, USDC, the leading dollar-backed stablecoin, and DRML Miner, a pioneer in…",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110353/0/en/USDC-and-DRML-Miner-Announce-Strategic-Alliance-to-Launch-Next-Gen-Cloud-Mining-and-Stabilize-the-Crypto-Market.html",
+      "timestamp": "2025-07-04T12:05:00Z"
+    },
+    {
+      "title": "Coinbase's Base Sees Over $4B in Capital Outflows Through Cross-Chain Bridges; Ethereum Registers Inflows of $8.5B",
+      "description": "Coinbase's Layer 2 solution, Base, has experienced a net outflow of $4.3 billion this year, reversing its previous position as a top performer.",
+      "source": "CoinDesk",
+      "url": "https://www.coindesk.com/markets/2025/07/04/coinbase-s-base-sees-over-usd4b-in-capital-outflows-ethereum-registers-inflows-of-usd8-5b",
+      "timestamp": "2025-07-04T12:01:33Z"
+    },
+    {
+      "title": "BRICS Envoys Flock to Rio",
+      "description": "At the bloc’s annual summit, Brazil hopes to focus on economic development rather than anti-Western antagonism.",
+      "source": "Foreign Policy",
+      "url": "http://foreignpolicy.com/2025/07/04/brics-leaders-summit-brazil-rio-economics-climate-lula/",
+      "timestamp": "2025-07-04T12:00:25Z"
+    },
+    {
+      "title": "How The IMF Prevents Global Bitcoin Adoption (And Why They Do It)",
+      "description": "The Global Pattern In recent years the IMF has: Here’s a summary Country GDP ($ Billion) IMF Loan ($ Billion) IMF Loan as % of GDP IMF response  Result Argentina 670 54.8 8.18% strong Bitcoin policy abandoned Central African Republic 2.56 0.272 2.31% strong B…",
+      "source": "Activistpost.com",
+      "url": "https://www.activistpost.com/how-the-imf-prevents-global-bitcoin-adoption-and-why-they-do-it/",
+      "timestamp": "2025-07-04T12:00:00Z"
+    },
+    {
+      "title": "Bitcoin Solaris Unveils Nova App and Enters Final Presale Phase Ahead of July Launch",
+      "description": "TALLINN, Estonia, July 04, 2025 (GLOBE NEWSWIRE) -- Bitcoin Solaris, a next-generation blockchain platform built on dual-layer architecture, has officially announced the upcoming release of its flagship Solaris Nova App, designed to democratize crypto mining …",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110351/0/en/Bitcoin-Solaris-Unveils-Nova-App-and-Enters-Final-Presale-Phase-Ahead-of-July-Launch.html",
+      "timestamp": "2025-07-04T11:55:00Z"
+    },
+    {
+      "title": "Stage Four Surge Leaves Market Staggered by Neo Pepe Coin’s Accelerated Presale Momentum",
+      "description": "Record-Breaking Transition Signals Intensifying Investor Demand  ROAD TOWN, British Virgin Islands, July  04, 2025  (GLOBE NEWSWIRE) -- Neo Pepe Coin......",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110348/0/en/Stage-Four-Surge-Leaves-Market-Staggered-by-Neo-Pepe-Coin-s-Accelerated-Presale-Momentum.html",
+      "timestamp": "2025-07-04T11:40:00Z"
+    },
+    {
+      "title": "Bitcoin Price On The Brink As Congress Introduces A New ‘Groundbreaking’ Crypto Bill",
+      "description": "Bitcoin and crypto-backing senator Senator Cynthia Lummis has introduced a bill to Congress she described as \"groundbreaking\"...",
+      "source": "Forbes",
+      "url": "https://www.forbes.com/sites/digital-assets/2025/07/04/bitcoin-price-on-the-brink-as-congress-introduces-a-new-groundbreaking-crypto-bill/",
+      "timestamp": "2025-07-04T11:32:44Z"
+    },
+    {
+      "title": "RICH Miner has launched a new free smart cloud mining APP, allowing users around the world to easily make money every day!",
+      "description": "As crypto assets become increasingly popular, how to obtain passive income stably and efficiently has become a concern for more and more investors. As crypto assets become increasingly popular, how to obtain passive income stably and efficiently has become a …",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110346/0/en/RICH-Miner-has-launched-a-new-free-smart-cloud-mining-APP-allowing-users-around-the-world-to-easily-make-money-every-day.html",
+      "timestamp": "2025-07-04T11:32:00Z"
+    },
+    {
+      "title": "Analyst Says Sell XRP Now Before 72% Price Crash To $0.6",
+      "description": "XRP remains one of the most actively discussed cryptocurrencies on social media, with expectations that its price has yet to plateau. Things like the Ripple battle with the Securities and Exchange Commission (SEC) coming to an end and Bitcoin expected to resu…",
+      "source": "Bitcoinist",
+      "url": "https://bitcoinist.com/sell-xrp-72-price-crash-0-6/",
+      "timestamp": "2025-07-04T11:30:12Z"
+    },
+    {
+      "title": "Galaxy’s EURAU to Set Alight EU Stablecoin Crypto Market – Spotlight on Best Wallet Token",
+      "description": "Galaxy Digital’s AllUnity (a Mike Novogratz-backed firm) has just secured a BaFin license to roll out EURAU – the first euro-backed stablecoin to meet MiCAR’s full regulatory standard. And let’s be honest: it’s about time the EU took the wheel on this one. Wh…",
+      "source": "Bitcoinist",
+      "url": "https://bitcoinist.com/eurau-stablecoin-spotlights-best-wallet-token/",
+      "timestamp": "2025-07-04T11:27:06Z"
+    },
+    {
+      "title": "Bitcoin Test Article",
+      "description": "This is a test description for Bitcoin news",
+      "source": "Test Source",
+      "url": "https://example.com/bitcoin-news",
+      "timestamp": "2025-07-05T14:00:00Z"
+    }
+  ]
+}
