@@ -86,6 +86,7 @@ async def handle_intent_request(ctx: Context, sender: str, msg: IntentRequest):
 
 # Variables globales pour stocker les réponses de l'AI agent
 pending_requests = {}
+ai_responses = {}
 
 class AIResponse(Model):
     request_id: str
@@ -95,7 +96,6 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
     """Génère une recommandation d'intent en contactant réellement l'AI agent Claude"""
     
     # Créer un ID unique pour cette requête
-    import uuid
     request_id = str(uuid.uuid4())
     
     # Créer un prompt financier spécialisé basé sur le type d'intent
@@ -129,6 +129,7 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
             "action": "action détaillée avec LayerZero",
             "confidence": 0.XX,
             "reasoning": "analyse détaillée",
+            "request_id": "{request_id}",
             "cross_chain_details": {{
                 "source_chain": "Ethereum",
                 "target_chain": "Optimism",
@@ -158,7 +159,8 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
             "schedule": "timing précis",
             "action": "action détaillée avec montants et chaînes",
             "confidence": 0.XX,
-            "reasoning": "analyse de marché détaillée"
+            "reasoning": "analyse de marché détaillée",
+            "request_id": "{request_id}"
         }}
         """
         
@@ -183,7 +185,8 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
             "condition": "condition de déclenchement précise",
             "action": "action de protection détaillée",
             "confidence": 0.XX,
-            "reasoning": "analyse de risque détaillée"
+            "reasoning": "analyse de risque détaillée",
+            "request_id": "{request_id}"
         }}
         """
         
@@ -202,7 +205,8 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
         {{
             "type": "custom_strategy",
             "reasoning": "analyse détaillée",
-            "suggested_action": "action recommandée"
+            "suggested_action": "action recommandée",
+            "request_id": "{request_id}"
         }}
         """
     
@@ -215,6 +219,7 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
             "action": {"type": "string"},
             "confidence": {"type": "number", "minimum": 0, "maximum": 1},
             "reasoning": {"type": "string"},
+            "request_id": {"type": "string"},
             "cross_chain_details": {
                 "type": "object",
                 "properties": {
@@ -224,7 +229,7 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
                 }
             }
         },
-        "required": ["type", "reasoning"]
+        "required": ["type", "reasoning", "request_id"]
     }
     
     # Envoyer le prompt à l'AI agent Claude
@@ -237,29 +242,84 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
         ctx.logger.info(f"🧠 Envoi du prompt financier à Claude AI pour {request.user_id}")
         ctx.logger.info(f"📤 Request ID: {request_id}")
         
-        # Stocker la requête en attente
         pending_requests[request_id] = {
             "user_id": request.user_id,
             "intent_type": request.intent_type,
             "timestamp": ctx.timestamp if hasattr(ctx, 'timestamp') else "N/A"
         }
         
-        # Envoyer à l'AI agent Claude
         await ctx.send(AI_AGENT_ADDRESS, prompt)
         
-        # TODO: Implémenter un système d'attente pour la réponse
-        # Pour l'instant, on retourne une réponse temporaire
-        ctx.logger.info("⏳ En attente de la réponse de Claude AI...")
-         
+        ctx.logger.info("⏳ En attente de la réponse de Claude AI (5s max)...")
+        ctx.logger.info(f"🔍 Debug - AI_AGENT_ADDRESS: {AI_AGENT_ADDRESS}")
+        
         import asyncio
-        await asyncio.sleep(1)  
-
-        return {
-            "type": "ai_analysis_pending",
-            "reasoning": f"Analyse en cours par Claude AI pour request_id: {request_id}",
-            "status": "pending_ai_response",
-            "request_id": request_id
-        }
+        for attempt in range(5):  # Seulement 5 secondes
+            await asyncio.sleep(1)
+            
+            if request_id in ai_responses:
+                ctx.logger.info(f"✅ Réponse reçue de Claude AI!")
+                response = ai_responses[request_id]
+                
+                # Nettoyer les variables
+                del ai_responses[request_id]
+                if request_id in pending_requests:
+                    del pending_requests[request_id]
+                
+                return response
+        
+        # Timeout après 5 secondes - Claude ne répond pas
+        ctx.logger.warning(f"⏰ Timeout rapide: Claude AI ne répond pas (probablement hors ligne)")
+        
+        # Nettoyer
+        if request_id in pending_requests:
+            del pending_requests[request_id]
+        
+        # Retourner directement une recommandation de fallback intelligente
+        ctx.logger.info("🤖 Génération d'une recommandation de fallback intelligente...")
+        
+        if request.intent_type == "price_based":
+            return {
+                "type": "conditional_transfer",
+                "condition": "ETH > $3200",
+                "action": "Transfer 50 USDC to Optimism via LayerZero",
+                "confidence": 0.7,
+                "reasoning": "Recommandation IntentFi: Basée sur l'analyse technique ETH. Niveau de résistance clé à $3200. Optimism choisi pour les frais réduits via LayerZero.",
+                "cross_chain_details": {
+                    "source_chain": "Ethereum",
+                    "target_chain": "Optimism", 
+                    "estimated_gas": "$3-6 USD"
+                },
+                "fallback": True,
+                "chainlink_trigger": True
+            }
+        elif request.intent_type == "time_based":
+            return {
+                "type": "scheduled_dca",
+                "schedule": "Weekly on Sundays at 12:00 UTC",
+                "action": "DCA 20 USDC into ETH, split 70% Ethereum / 30% Arbitrum",
+                "confidence": 0.8,
+                "reasoning": "Recommandation IntentFi: DCA hebdomadaire optimal pour réduire la volatilité. Split multi-chain via LayerZero pour optimiser les coûts.",
+                "chainlink_automation": True,
+                "fallback": True
+            }
+        elif request.intent_type == "risk_management":
+            return {
+                "type": "stop_loss_protection",
+                "condition": "ETH < $2900 OR portfolio_loss > 12%",
+                "action": "Convert 25% ETH to USDC, distribute across Polygon and Base",
+                "confidence": 0.75,
+                "reasoning": "Recommandation IntentFi: Protection contre volatilité excessive. Diversification multi-chain automatique via LayerZero.",
+                "chainlink_monitoring": True,
+                "fallback": True
+            }
+        else:
+            return {
+                "type": "hold_strategy",
+                "reasoning": "Recommandation IntentFi: Type d'intent non reconnu. Stratégie conservatrice recommandée en attendant clarification.",
+                "suggested_action": "Définir un intent spécifique (price_based, time_based, risk_management)",
+                "fallback": True
+            }
             
     except Exception as e:
         ctx.logger.error(f"❌ Erreur lors de l'envoi à Claude AI: {e}")
@@ -351,16 +411,46 @@ async def send_message(ctx: Context):
     ctx.logger.info(f"   POST http://localhost:8001/recommend")
     ctx.logger.info(f"   GET  http://localhost:8001/intents/popular")
     
+    # Test de connectivité avec l'AI agent
+    ctx.logger.info(f"🔍 Test de connectivité avec AI Agent: {AI_AGENT_ADDRESS}")
+    
+    test_prompt = TextPrompt(text="Hello, this is a connectivity test from IntentFi agent. Please respond with 'Connected' if you receive this message.")
+    
+    try:
+        await ctx.send(AI_AGENT_ADDRESS, test_prompt)
+        ctx.logger.info("📤 Message de test envoyé à l'AI Agent")
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de l'envoi du test: {e}")
+    
+    # Test avec prompt structuré
     prompt = StructuredOutputPrompt(
-        prompt="Get current ETH price and market sentiment for trading decisions",
-        output_schema=Location.schema(),
+        prompt="Simple test - return current timestamp and status 'online'",
+        output_schema={
+            "type": "object",
+            "properties": {
+                "status": {"type": "string"},
+                "timestamp": {"type": "string"},
+                "test": {"type": "boolean"}
+            }
+        },
     )
-    await ctx.send(AI_AGENT_ADDRESS, prompt)
+    
+    try:
+        await ctx.send(AI_AGENT_ADDRESS, prompt)
+        ctx.logger.info("📤 Test structuré envoyé à l'AI Agent")
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de l'envoi du test structuré: {e}")
 
 
 @agent.on_message(TextResponse)
 async def handle_text_response(ctx: Context, sender: str, msg: TextResponse):
-    ctx.logger.info(f"📥 Réponse IA: {msg.text}")
+    ctx.logger.info(f"📥 Réponse texte IA de ...{sender[-8:]}: {msg.text}")
+    
+    # Vérifier si c'est une réponse au test de connectivité
+    if "Connected" in msg.text or "connectivity test" in msg.text.lower():
+        ctx.logger.info("✅ Test de connectivité réussi avec l'AI Agent!")
+    elif "Hello" in msg.text or "test" in msg.text.lower():
+        ctx.logger.info("✅ Communication établie avec l'AI Agent!")
 
 
 @agent.on_message(StructuredOutputResponse)  
@@ -370,9 +460,15 @@ async def handle_structured_response(ctx: Context, sender: str, msg: StructuredO
     ctx.logger.info(f"🔍 Données: {msg.output}")
     
     try:
-        # Vérifier si c'est une réponse d'intent financier
-        if isinstance(msg.output, dict) and any(key in msg.output for key in ['type', 'condition', 'action', 'reasoning']):
-            ctx.logger.info("💰 Recommandation d'intent financier reçue!")
+        # Vérifier si c'est une réponse d'intent financier avec request_id
+        if isinstance(msg.output, dict) and 'request_id' in msg.output:
+            request_id = msg.output['request_id']
+            ctx.logger.info(f"🎯 Réponse pour request_id: {request_id}")
+            
+            # Stocker la réponse pour qu'elle soit récupérée par generate_intent_recommendation
+            ai_responses[request_id] = msg.output
+            
+            ctx.logger.info("💰 Recommandation d'intent financier stockée!")
             ctx.logger.info("=" * 60)
             
             recommendation = msg.output
@@ -403,7 +499,34 @@ async def handle_structured_response(ctx: Context, sender: str, msg: StructuredO
             
             ctx.logger.info("=" * 60)
             
+        # Vérifier si c'est une réponse d'intent financier sans request_id (format général)
+        elif isinstance(msg.output, dict) and any(key in msg.output for key in ['type', 'condition', 'action', 'reasoning']):
+            ctx.logger.info("💰 Recommandation d'intent financier reçue (sans request_id)!")
+            ctx.logger.info("=" * 60)
+            
+            recommendation = msg.output
+            
+            # Affichage détaillé
+            ctx.logger.info(f"🎯 TYPE: {recommendation.get('type', 'N/A')}")
+            
+            if 'condition' in recommendation:
+                ctx.logger.info(f"⚡ CONDITION: {recommendation['condition']}")
+            
+            if 'action' in recommendation:
+                ctx.logger.info(f"🚀 ACTION: {recommendation['action']}")
+            
+            if 'confidence' in recommendation:
+                confidence = recommendation['confidence']
+                confidence_emoji = "🟢" if confidence > 0.8 else "🟡" if confidence > 0.6 else "🔴"
+                ctx.logger.info(f"{confidence_emoji} CONFIANCE: {confidence:.1%}")
+            
+            if 'reasoning' in recommendation:
+                ctx.logger.info(f"🧠 ANALYSE: {recommendation['reasoning']}")
+            
+            ctx.logger.info("=" * 60)
+            
         else:
+            # Autres types de réponses (comme température, etc.)
             ctx.logger.info(f"📊 Autre réponse structurée: {msg.output}")
             
     except Exception as e:
