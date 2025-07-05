@@ -2,7 +2,6 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { AppColors, CommonStyles } from "@/constants/AppStyles";
 import { useApp } from "@/contexts/AppContext";
-import { useWallet } from "@/contexts/WalletContext";
 import { formatAddress } from "@/src/utils/helpers";
 import { useState } from "react";
 import {
@@ -16,7 +15,6 @@ import {
 } from "react-native";
 
 export default function SettingsScreen() {
-  const { isConnected, address, disconnect } = useWallet();
   const { state } = useApp();
 
   // Settings state
@@ -24,21 +22,6 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
-
-  const handleDisconnectWallet = () => {
-    Alert.alert(
-      "Disconnect Wallet",
-      "Are you sure you want to disconnect your wallet?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Disconnect",
-          style: "destructive",
-          onPress: disconnect,
-        },
-      ]
-    );
-  };
 
   return (
     <ThemedView style={styles.container}>
@@ -53,53 +36,6 @@ export default function SettingsScreen() {
             Manage your wallet and AI agent preferences
           </ThemedText>
         </View>
-
-        {/* Wallet Section */}
-        {isConnected && (
-          <View style={styles.section}>
-            <ThemedText type="subtitle" style={styles.sectionTitle}>
-              Wallet
-            </ThemedText>
-
-            <View style={styles.walletCard}>
-              <View style={styles.walletInfo}>
-                <View style={styles.walletIcon}>
-                  <Text style={styles.walletIconText}>🔗</Text>
-                </View>
-                <View style={styles.walletDetails}>
-                  <ThemedText style={styles.walletLabel}>
-                    Connected Wallet
-                  </ThemedText>
-                  <ThemedText style={styles.walletAddress}>
-                    {address ? formatAddress(address) : "Not connected"}
-                  </ThemedText>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.disconnectButton}
-                onPress={handleDisconnectWallet}
-              >
-                <ThemedText style={styles.disconnectButtonText}>
-                  Disconnect
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.networkInfo}>
-              <View style={styles.networkRow}>
-                <ThemedText style={styles.networkLabel}>Network:</ThemedText>
-                <ThemedText style={styles.networkValue}>
-                  Ethereum Mainnet
-                </ThemedText>
-              </View>
-              <View style={styles.networkRow}>
-                <ThemedText style={styles.networkLabel}>Balance:</ThemedText>
-                <ThemedText style={styles.networkValue}>2.45 ETH</ThemedText>
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* AI Agent Settings */}
         <View style={styles.section}>

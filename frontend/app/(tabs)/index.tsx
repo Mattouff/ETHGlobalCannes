@@ -2,10 +2,8 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { AppColors, CommonStyles } from "@/constants/AppStyles";
 import { useApp } from "@/contexts/AppContext";
-import { useWallet } from "@/contexts/WalletContext";
-import { useEffect } from "react";
+import { useAccount, useConnect, useDisconnect } from "wagmi";
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,91 +13,25 @@ import {
 
 export default function DashboardScreen() {
   const { state } = useApp();
-  const { isConnected, address, connect, isConnecting, disconnect } =
-    useWallet();
-
-  // Connect wallet to app context when wallet connects
-  useEffect(() => {
-    if (isConnected && address) {
-      // In a real app, you would get the chain from the wallet
-      // For demo, assume Ethereum mainnet
-      // connectWallet(address, 'Ethereum');
-    }
-  }, [isConnected, address]);
-
-  const handleConnectWallet = async () => {
-    try {
-      await connect();
-    } catch {
-      Alert.alert("Connection Error", "Failed to connect wallet");
-    }
-  };
-
-  const handleDisconnectWallet = async () => {
-    try {
-      await disconnect();
-    } catch {
-      Alert.alert("Disconnection Error", "Failed to disconnect wallet");
-    }
-  };
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+  const { disconnect } = useDisconnect();
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  const handleConnect = () => {
+    // Utilise le premier connecteur disponible (WalletConnect ou MetaMask)
+    const connector = connectors[0];
+    if (connector) {
+      connect({ connector });
+    }
+  };
+
   const getStatusColor = (isActive: boolean) => {
     return isActive ? "#10B981" : "#EF4444";
   };
-
-  if (!isConnected) {
-    return (
-      <ThemedView style={styles.container}>
-        <View style={styles.connectContainer}>
-          <ThemedText type="title" style={styles.title}>
-            AI Agent Cross-Chain Portfolio
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            Connect your wallet to start managing your cross-chain assets with
-            AI assistance
-          </ThemedText>
-
-          <TouchableOpacity
-            style={[
-              styles.connectButton,
-              isConnecting && styles.connectingButton,
-            ]}
-            onPress={handleConnectWallet}
-            disabled={isConnecting}
-          >
-            <Text style={styles.connectButtonText}>
-              {isConnecting ? "Connecting..." : "Connect Wallet"}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.featuresContainer}>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>🤖</Text>
-              <ThemedText style={styles.featureText}>
-                AI-powered trading insights
-              </ThemedText>
-            </View>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>🌐</Text>
-              <ThemedText style={styles.featureText}>
-                Cross-chain asset management
-              </ThemedText>
-            </View>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>⚡</Text>
-              <ThemedText style={styles.featureText}>
-                Automated execution
-              </ThemedText>
-            </View>
-          </View>
-        </View>
-      </ThemedView>
-    );
-  }
 
   return (
     <ThemedView style={styles.container}>
@@ -111,14 +43,8 @@ export default function DashboardScreen() {
         <View style={CommonStyles.header}>
           <View>
             <ThemedText style={CommonStyles.headerTitle}>Dashboard</ThemedText>
-            <Text style={styles.address}>{formatAddress(address!)}</Text>
+            {/* <Text style={styles.address}>{formatAddress(address!)}</Text> */}
           </View>
-          <TouchableOpacity
-            style={styles.disconnectButton}
-            onPress={handleDisconnectWallet}
-          >
-            <Text style={styles.disconnectButtonText}>Disconnect</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Portfolio Overview */}
@@ -151,6 +77,7 @@ export default function DashboardScreen() {
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             AI Agent Status
           </ThemedText>
+          
           <View style={styles.agentCard}>
             <View style={styles.agentHeader}>
               <View style={styles.agentStatus}>
@@ -246,6 +173,40 @@ export default function DashboardScreen() {
               </View>
             </View>
           ))}
+        </View>
+
+        {/* Wallet Connection */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            Wallet Connection
+          </ThemedText>
+          <View style={styles.walletSection}>
+            {!isConnected ? (
+              <TouchableOpacity 
+                style={[styles.connectButton, isPending && styles.connectingButton]}
+                onPress={handleConnect}
+                disabled={isPending}
+              >
+                <Text style={styles.connectButtonText}>
+                  {isPending ? "Connecting..." : "Connect Wallet"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.connectedInfo}>
+                <Text style={styles.walletAddress}>
+                  Connected: {formatAddress(address!)}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.disconnectButton} 
+                  onPress={() => disconnect()}
+                >
+                  <Text style={styles.disconnectButtonText}>
+                    Disconnect
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Quick Actions */}
@@ -522,5 +483,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
     color: AppColors.textPrimary,
+  },
+  walletSection: {
+    alignItems: "center",
+    padding: 16,
+    gap: 12,
+  },
+  connectedInfo: {
+    alignItems: "center",
+    gap: 8,
+  },
+  walletAddress: {
+    fontSize: 14,
+    color: AppColors.textSecondary,
+    backgroundColor: AppColors.cardBackground,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: AppColors.border,
   },
 });
