@@ -1,7 +1,56 @@
 {
-  "timestamp": "2025-07-05T19:46:57.979399",
-  "total_articles": 42,
+  "timestamp": "2025-07-05T20:54:49.061825",
+  "total_articles": 49,
   "articles": [
+    {
+      "title": "House Committee on Financial Services Declares Week of July 14th As ‘Crypto Week’",
+      "description": "The U.S. House is declaring the week of July 14th as “Crypto Week,” as three major crypto-related acts will be considered by Congress. According to a new announcement from the U.S. House Committee on Financial Services, the CLARITY Act, the Anti-CBDC Surveill…",
+      "source": "The Daily Hodl",
+      "url": "https://dailyhodl.com/2025/07/04/house-committee-on-financial-services-declares-week-of-july-14th-as-crypto-week/",
+      "timestamp": "2025-07-04T18:41:20Z"
+    },
+    {
+      "title": "Bitcoin Holds Above $110K: Smart Capital Flows into BTC Miner for Daily Stable USD Returns",
+      "description": "As price speculation grows riskier, high-net-worth investors turn to BTC Miner’s cloud mining model for consistent income As price speculation grows riskier, high-net-worth investors turn to BTC Miner’s cloud mining model for consistent income",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110478/0/en/Bitcoin-Holds-Above-110K-Smart-Capital-Flows-into-BTC-Miner-for-Daily-Stable-USD-Returns.html",
+      "timestamp": "2025-07-04T18:35:00Z"
+    },
+    {
+      "title": "How a Hacker Spent Only $2.7K to Steal $140 Million From Brazilian Banks",
+      "description": "The hackers laundered roughly $40 million worth of the stolen funds using Bitcoin, Ethereum, and Tether, according to a blockchain investigator.",
+      "source": "Decrypt",
+      "url": "https://decrypt.co/328700/hacker-spent-2k-steal-140-million-brazil-central-bank",
+      "timestamp": "2025-07-04T18:33:55Z"
+    },
+    {
+      "title": "Countdown to Launch: Lightchain AI Begins Final Presale Phase",
+      "description": "SHREWSBURY, United Kingdom, July 04, 2025 (GLOBE NEWSWIRE) -- Lightchain AI\r\n, a next-generation blockchain infrastructure platform designed for decentralized artificial intelligence, has announced the start of its Final Bonus Round, following the successful …",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110475/0/en/Countdown-to-Launch-Lightchain-AI-Begins-Final-Presale-Phase.html",
+      "timestamp": "2025-07-04T18:17:00Z"
+    },
+    {
+      "title": "MintMiner Launches Global Cloud Mining Platform, Offers Free BTC",
+      "description": "As Bitcoin continues to break through historical highs and blockchain accelerates towards the mainstream, more and more people are eager to participate in it in a low-threshold, safe and reliable way. MintMiner was born for this purpose As Bitcoin continues t…",
+      "source": "GlobeNewswire",
+      "url": "https://www.globenewswire.com/news-release/2025/07/04/3110472/0/en/MintMiner-Launches-Global-Cloud-Mining-Platform-Offers-Free-BTC.html",
+      "timestamp": "2025-07-04T18:04:00Z"
+    },
+    {
+      "title": "US Senator Lummis’s crypto tax relief plan fuels DeFi momentum: Finance Redefined",
+      "description": "Senator Lummis’s standalone crypto bill proposes tax exemptions on certain crypto transactions and more clarity on the treatment of crypto mining and staking taxes.",
+      "source": "Cointelegraph",
+      "url": "https://cointelegraph.com/news/us-senator-lummis-crypto-tax-plan-defi-finance-redefined",
+      "timestamp": "2025-07-04T18:00:00Z"
+    },
+    {
+      "title": "Ethereum is powering Wall Street's future. The crypto scene at Cannes shows how far it's come",
+      "description": "Ethereum’s institutional adoption is accelerating, with BlackRock, Deutsche Bank, Coinbase, and Kraken all building directly on its rails.",
+      "source": "CNBC",
+      "url": "https://www.cnbc.com/2025/07/04/the-ethcc-crypto-scene-at-cannes-shows-how-far-ethereum-has-come.html",
+      "timestamp": "2025-07-04T17:49:59Z"
+    },
     {
       "title": "Sweden Orders Police to Increase Seizures of Criminal Crypto Profits",
       "description": "Sweden's Minister of Justice has called on the authorities to make greater use of forfeiture legislation to seize cryptocurrency.",

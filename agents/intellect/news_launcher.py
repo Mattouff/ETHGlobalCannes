@@ -127,19 +127,20 @@ def main():
     try:
         global news_process
         
-        # Lancer news.py sur port 8001 (avec affichage des logs)
-        print("📰 Lancement de News Agent (port 8001) - Logs en temps réel:")
+        # Lancer news.py sur port 8002 (avec affichage des logs)
+        print("📰 Lancement de News Agent (port 8002) - Logs en temps réel:")
         print("-" * 60)
         
         log_launcher_info("Démarrage du processus News Agent")
         
         news_process = subprocess.Popen(
-            ["/usr/local/opt/python@3.11/bin/python3.11", news_path],
+            [sys.executable, news_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
             bufsize=1
         )
+
         
         # Thread pour monitorer news (logs affichés)
         news_thread = Thread(
@@ -151,9 +152,9 @@ def main():
         
         print(f"\n✅ News Agent lancé avec succès!")
         log_launcher_info("News Agent lancé avec succès")
-        print(f"📰 News Agent: http://localhost:8001")
-        print(f"   - Health: GET http://localhost:8001/health")
-        print(f"   - News: POST http://localhost:8001/news")
+        print(f"📰 News Agent: http://localhost:8002")
+        print(f"   - Health: GET http://localhost:8002/health")
+        print(f"   - News: POST http://localhost:8002/news")
         print(f"📄 Logs JSON: {ARTICLES_FILE}")
         print(f"\n🔍 Monitoring des logs ci-dessous...")
         print(f"   (Utilisez Ctrl+C pour arrêter)")

@@ -72,8 +72,8 @@ def log_to_json(event_type: str, data: dict = None, message: str = None):
 agent = Agent(
     name="news_agent",
     seed="news_secret_seed_phrase",
-    port=8001,
-    endpoint=["http://localhost:8001/submit"]
+    port=8002,
+    endpoint=["http://localhost:8002/submit"]
 )
 
 # Modèle pour les données de news
@@ -187,7 +187,7 @@ def clear_old_cache():
 async def startup_function(ctx: Context):
     ctx.logger.info(f"🚀 News Agent démarré - {agent.name}")
     ctx.logger.info(f"📍 Adresse: {agent.address}")
-    ctx.logger.info(f"🌐 API REST disponible sur http://localhost:8001")
+    ctx.logger.info(f"🌐 API REST disponible sur http://localhost:8002")
     ctx.logger.info(f"📋 Endpoints: POST /news, GET /health")
     ctx.logger.info(f"⏰ Récupération automatique toutes les 3 secondes")
 
