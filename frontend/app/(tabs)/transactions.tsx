@@ -36,8 +36,10 @@ export default function TransactionsScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <ThemedText type="title">Transaction History</ThemedText>
-          <ThemedText style={styles.subtitle}>
+          <ThemedText style={CommonStyles.headerTitle}>
+            Transaction History
+          </ThemedText>
+          <ThemedText style={CommonStyles.headerSubtitle}>
             Cross-chain transaction tracking
           </ThemedText>
         </View>
