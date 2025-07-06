@@ -7,6 +7,7 @@ from datetime import datetime
 import os
 
 
+
 class TextPrompt(Model):
     text: str
 
@@ -93,6 +94,7 @@ print(f"Agent address: {agent.address}")
 fund_agent_if_low(agent.wallet.address())
 
 AI_AGENT_ADDRESS = "agent1qvk7q2av3e2y5gf5s90nfzkc8a48q3wdqeevwrtgqfdl0k78rspd6f2l4dx"
+
 SIMON_AGENT_ADDRESS = "agent1qvd8tt75720p60aggzlna7rep89rmadhrt67cllz486w4y6www06vquhcca"
 
 # Fichier des actualités généré par news.py
@@ -124,6 +126,7 @@ async def handle_intent_request(ctx: Context, sender: str, msg: IntentRequest):
 
 # Variables globales pour stocker les réponses de l'AI agent
 pending_requests = {}
+
 ai_responses = {}
 
 class AIResponse(Model):
@@ -168,6 +171,7 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
             "confidence": 0.XX,
             "reasoning": "analyse détaillée",
             "request_id": "{request_id}",
+
             "cross_chain_details": {{
                 "source_chain": "Ethereum",
                 "target_chain": "Optimism",
@@ -223,6 +227,7 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
             "condition": "condition de déclenchement précise",
             "action": "action de protection détaillée",
             "confidence": 0.XX,
+
             "reasoning": "analyse de risque détaillée",
             "request_id": "{request_id}"
         }}
@@ -279,13 +284,14 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
         
         ctx.logger.info(f"🧠 Envoi du prompt financier à Claude AI pour {request.user_id}")
         ctx.logger.info(f"📤 Request ID: {request_id}")
-        
+
         pending_requests[request_id] = {
             "user_id": request.user_id,
             "intent_type": request.intent_type,
             "timestamp": ctx.timestamp if hasattr(ctx, 'timestamp') else "N/A"
         }
         
+
         await ctx.send(AI_AGENT_ADDRESS, prompt)
         
         ctx.logger.info("⏳ En attente de la réponse de Claude AI (5s max)...")
@@ -433,7 +439,6 @@ async def get_popular_intents(ctx: Context) -> PopularIntentsResponse:
         timestamp=str(ctx.timestamp) if hasattr(ctx, 'timestamp') else "N/A"
     )
 
-
 @agent.on_rest_get("/getJson", NewsJsonResponse)
 async def get_news_json(ctx: Context) -> NewsJsonResponse:
     """Endpoint pour récupérer le contenu du fichier news_logs.json"""
@@ -482,7 +487,6 @@ async def get_news_json(ctx: Context) -> NewsJsonResponse:
             timestamp=datetime.now().isoformat(),
             status="error"
         )
-
 
 agent.include(intentfi_protocol)
 
@@ -840,7 +844,6 @@ async def handle_trading_analysis_request(ctx: Context, sender: str, msg: Tradin
             
     except Exception as e:
         ctx.logger.error(f"❌ Erreur lors du traitement de la demande de Simon: {e}")
-
 
 if __name__ == "__main__":
     agent.run()
