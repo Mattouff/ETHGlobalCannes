@@ -95,7 +95,7 @@ const fetchUserTokens = async (
   }
 };
 
-const API_BASE_URL = config.API_BASE_AGENT_URL || "http://localhost:8000";
+const API_BASE_URL = config.API_INTELLECT_AGENT_URL || "http://localhost:8001";
 
 export default function TradingScreen() {
   const { isConnected, address } = useAccount();

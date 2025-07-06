@@ -175,9 +175,9 @@ class TradingAnalysisAPIResponse(Model):
 # Configuration de l'agent avec endpoint
 agent = Agent(
     name="intellect",
-    port=8000,
+    port=8001,
     seed="intentfi-agent-seed-phrase",
-    endpoint=["https://91fe-83-144-23-154.ngrok-free.app/submit"],
+    endpoint=["localhost:8001/submit"],  # Endpoint local pour les tests
     mailbox=True,
 )
 
@@ -1145,18 +1145,18 @@ class Location(Model):
 async def send_message(ctx: Context):
     ctx.logger.info("🚀 IntentFi Agent démarré!")
     ctx.logger.info(f"📍 Endpoints disponibles:")
-    ctx.logger.info(f"   GET  http://localhost:8000/health")
-    ctx.logger.info(f"   POST http://localhost:8000/recommend")
-    ctx.logger.info(f"   GET  http://localhost:8000/intents/popular")
-    ctx.logger.info(f"   GET  http://localhost:8000/getJson")
-    ctx.logger.info(f"   POST http://localhost:8000/trading/recommend")
+    ctx.logger.info(f"   GET  http://localhost:8001/health")
+    ctx.logger.info(f"   POST http://localhost:8001/recommend")
+    ctx.logger.info(f"   GET  http://localhost:8001/intents/popular")
+    ctx.logger.info(f"   GET  http://localhost:8001/getJson")
+    ctx.logger.info(f"   POST http://localhost:8001/trading/recommend")
     ctx.logger.info(f"")
     ctx.logger.info(f"💬 Endpoints Chat ASI1.ai:")
-    ctx.logger.info(f"   POST http://localhost:8000/chat/send")
-    ctx.logger.info(f"   GET  http://localhost:8000/chat/history/{{conversation_id}}")
-    ctx.logger.info(f"   GET  http://localhost:8000/chat/conversations")
-    ctx.logger.info(f"   GET  http://localhost:8000/chat/analytics")
-    ctx.logger.info(f"   GET  http://localhost:8000/asi-one/metadata")
+    ctx.logger.info(f"   POST http://localhost:8001/chat/send")
+    ctx.logger.info(f"   GET  http://localhost:8001/chat/history/{{conversation_id}}")
+    ctx.logger.info(f"   GET  http://localhost:8001/chat/conversations")
+    ctx.logger.info(f"   GET  http://localhost:8001/chat/analytics")
+    ctx.logger.info(f"   GET  http://localhost:8001/asi-one/metadata")
     ctx.logger.info(f"")
     ctx.logger.info(f"🌐 URL publique: https://91fe-83-144-23-154.ngrok-free.app")
     ctx.logger.info(f"🎯 Agent ID: {ctx.agent.address}")

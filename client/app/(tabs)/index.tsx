@@ -100,7 +100,7 @@ const AGENTS_CONFIG = [
     name: "Intellect Agent",
     address:
       "agent1qf82uz69zk3dlw6k3y5aewlfaavcxed29a8w9rmxqsf20tgnwtx9xxdrf24",
-    port: 8000,
+    port: 8001,
   },
   {
     name: "Simon Agent",
