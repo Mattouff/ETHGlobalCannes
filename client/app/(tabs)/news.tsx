@@ -43,7 +43,7 @@ export default function NewsScreen() {
   const fetchNews = async () => {
     try {
       setError(null);
-      const newsUrl = `${config.API_NEWS_AGENT_URL}/getJson`;
+      const newsUrl = `${config.API_INTELLECT_AGENT_URL}/getJson`;
       console.log("Fetching news from:", newsUrl);
       const response = await fetch(newsUrl);
 
