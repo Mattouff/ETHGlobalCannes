@@ -418,6 +418,37 @@ export default function HomeScreen() {
             </ThemedText>
 
             <ThemedView style={styles.agentsGrid}>
+              {/* Chat Agent Card - Full Width */}
+              <TouchableOpacity
+                style={styles.chatAgentCard}
+                onPress={() => {
+                  const chatUrl =
+                    "https://agentverse.ai/agents/details/agent1qwlxt7alynn08f63r9qca9ahxee26k46w88wrr3q8v08znwmd5yq6ute7e9/profile";
+                  Linking.openURL(chatUrl).catch((err) =>
+                    console.error("Failed to open chat URL:", err)
+                  );
+                }}
+              >
+                <ThemedView style={styles.chatAgentHeader}>
+                  <ThemedText style={styles.chatAgentTitle}>
+                    💬 Agent Chat
+                  </ThemedText>
+                  <ThemedView
+                    style={[
+                      styles.statusIndicator,
+                      { backgroundColor: "#4ade80" },
+                    ]}
+                  />
+                </ThemedView>
+                <ThemedText style={styles.chatAgentDescription}>
+                  Chattez avec notre agent IntentFi intelligent
+                </ThemedText>
+                <ThemedText style={styles.chatAgentLink}>
+                  🔗 Ouvrir le chat →
+                </ThemedText>
+              </TouchableOpacity>
+
+              {/* Existing Agent Cards */}
               {agentsStatus.map((agent, index) => (
                 <TouchableOpacity
                   key={index}
@@ -811,6 +842,43 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: "rgba(0, 0, 0, 0)",
   },
+
+  // Chat Agent Card (Full Width)
+  chatAgentCard: {
+    width: "100%", // Prend toute la largeur
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)", // Bordure violette
+    backgroundColor: "rgba(139, 92, 246, 0.1)", // Fond violet clair
+  },
+  chatAgentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    backgroundColor: "rgba(0, 0, 0, 0)",
+  },
+  chatAgentTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
+    backgroundColor: "rgba(0, 0, 0, 0)",
+  },
+  chatAgentDescription: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  chatAgentLink: {
+    fontSize: 16,
+    color: "#8b5cf6", // Couleur violette
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
   agentCard: {
     width: (width - 56) / 3 - 4, // 3 cards per row with small gap
     borderRadius: 16,
