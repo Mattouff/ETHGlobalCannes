@@ -13,22 +13,23 @@ import {
 import { useAccount, useChainId } from "wagmi";
 import { config } from "@/config/env";
 
-// Types pour les recommandations
+// Types pour les recommandations - Format JSON plat
 interface TradingRecommendation {
+  token_symbol: string;
   action: "buy" | "sell" | "hold";
   confidence: number;
+  confidence_level?: string;
   reasoning: string;
-  token: string;
-  timestamp: string;
+  news_sentiment?: string;
   price_target?: number | null;
   stop_loss?: number | null;
-  news_sentiment?: string;
-  market_context?: {
-    current_price: number;
-    trend: string;
-    support: number;
-    resistance: number;
-  };
+  timestamp: string;
+  received_at?: string;
+  // Champs optionnels pour le market context (ajout futur)
+  current_price?: number;
+  trend?: string;
+  support?: number;
+  resistance?: number;
 }
 
 // Types pour les tokens du wallet
@@ -148,23 +149,41 @@ export default function TradingScreen() {
     loadUserTokens().finally(() => setRefreshing(false));
   }, [loadUserTokens]);
 
-  const fetchRecommendation = async (token: string) => {
+  const fetchRecommendation = async (token: string, retryCount = 0) => {
     setLoading(true);
     setError(null);
 
+    const maxRetries = 2;
+    const timeout = 30000; // 30 secondes timeout
+
     try {
+      // Créer un controller pour gérer le timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
       const response = await fetch(`${API_BASE_URL}/trading/recommend`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ token_symbol: token }),
+        signal: controller.signal,
       });
 
-      const data = await response.json();
-      console.log('Raw API response:', JSON.stringify(data, null, 2));
+      clearTimeout(timeoutId);
 
-      if (data.success) {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("Raw API response:", JSON.stringify(data, null, 2));
+
+      // Nouveau format JSON plat - vérifier si on a une réponse directe
+      if (data.token_symbol && data.action) {
+        // Format plat direct
+        console.log("Using flat JSON format");
+
         // Mapping pour s'assurer que les actions sont au bon format
         const actionMapping: { [key: string]: "buy" | "sell" | "hold" } = {
           buy: "buy",
@@ -178,30 +197,209 @@ export default function TradingScreen() {
           HOLD: "hold",
         };
 
-        console.log('Original action from API:', data.analysis?.action);
-        const mappedAction = actionMapping[data.analysis?.action] || "hold";
-        console.log('Mapped action:', mappedAction);
+        console.log("Original action from API:", data.action);
+        const mappedAction =
+          actionMapping[data.action?.toUpperCase()] || "hold";
+        console.log("Mapped action:", mappedAction);
 
         const recommendationData: TradingRecommendation = {
+          token_symbol: data.token_symbol,
           action: mappedAction,
-          confidence: data.analysis.confidence,
-          reasoning: data.analysis.reasoning,
-          token: data.analysis.token || token,
-          timestamp: data.analysis.timestamp,
+          confidence: data.confidence || 0,
+          confidence_level: data.confidence_level,
+          reasoning: data.reasoning || "No analysis available",
+          news_sentiment: data.news_sentiment,
+          price_target: data.price_target,
+          stop_loss: data.stop_loss,
+          timestamp: data.timestamp,
+          received_at: data.received_at,
+          // Market context optionnel
+          current_price: data.current_price,
+          trend: data.trend,
+          support: data.support,
+          resistance: data.resistance,
+        };
+        setRecommendation(recommendationData);
+      } else if (data.success && data.analysis) {
+        // Format ancien (legacy) - pour compatibilité
+        console.log("Using legacy nested format");
+
+        const actionMapping: { [key: string]: "buy" | "sell" | "hold" } = {
+          buy: "buy",
+          sell: "sell",
+          hold: "hold",
+          ACHETER: "buy",
+          VENDRE: "sell",
+          CONSERVER: "hold",
+          BUY: "buy",
+          SELL: "sell",
+          HOLD: "hold",
+        };
+
+        console.log("Original action from API:", data.analysis?.action);
+        const mappedAction =
+          actionMapping[data.analysis?.action?.toUpperCase()] || "hold";
+        console.log("Mapped action:", mappedAction);
+
+        const recommendationData: TradingRecommendation = {
+          token_symbol: data.analysis.token || token,
+          action: mappedAction,
+          confidence: data.analysis.confidence || 0,
+          reasoning: data.analysis.reasoning || "No analysis available",
+          news_sentiment: data.analysis.news_sentiment,
           price_target: data.analysis.price_target,
           stop_loss: data.analysis.stop_loss,
-          news_sentiment: data.analysis.news_sentiment,
-          market_context: data.analysis.market_context,
+          timestamp: data.analysis.timestamp,
+          current_price: data.analysis.market_context?.current_price,
+          trend: data.analysis.market_context?.trend,
+          support: data.analysis.market_context?.support,
+          resistance: data.analysis.market_context?.resistance,
         };
         setRecommendation(recommendationData);
       } else {
-        setError(
-          data.error || data.message || "Error retrieving recommendation"
-        );
+        // Gestion d'erreur améliorée avec fallback
+        const errorMessage =
+          data.error || data.message || "Error retrieving recommendation";
+
+        // Si c'est un timeout ou une erreur de connexion, proposer un fallback
+        if (
+          errorMessage.toLowerCase().includes("timeout") ||
+          errorMessage.toLowerCase().includes("connection") ||
+          errorMessage.toLowerCase().includes("failed to deliver")
+        ) {
+          console.log(
+            `Connection issue detected, creating fallback recommendation for ${token}`
+          );
+
+          // Créer une recommandation de fallback basique
+          const fallbackRecommendation: TradingRecommendation = {
+            token_symbol: token,
+            action: "hold",
+            confidence: 0.1, // Très faible confiance pour indiquer que c'est un fallback
+            confidence_level: "Very Low (Fallback)",
+            reasoning: `⚠️ Backend analysis unavailable due to connection issues. This is a conservative fallback recommendation. Please try again later for a complete analysis. Error: ${errorMessage}`,
+            news_sentiment: "neutral",
+            price_target: null,
+            stop_loss: null,
+            timestamp: new Date().toISOString(),
+            received_at: new Date().toISOString(),
+            current_price: undefined,
+            trend: "unknown",
+            support: undefined,
+            resistance: undefined,
+          };
+
+          setRecommendation(fallbackRecommendation);
+          setError(
+            `⚠️ Using fallback analysis due to backend issues. Recommendation may not be current.`
+          );
+          return;
+        }
+
+        setError(errorMessage);
       }
-    } catch (err) {
-      setError("Server connection error. Check that the backend is running.");
-      console.error("Retrieval error:", err);
+    } catch (err: any) {
+      console.error("Fetch error:", err);
+
+      // Gestion spécifique des différents types d'erreur
+      if (err.name === "AbortError") {
+        // Timeout
+        if (retryCount < maxRetries) {
+          console.log(`Timeout, retrying... (${retryCount + 1}/${maxRetries})`);
+          setError(
+            `⏱️ Request timeout, retrying... (${retryCount + 1}/${maxRetries})`
+          );
+
+          // Attendre un peu avant de retry
+          await new Promise((resolve) =>
+            setTimeout(resolve, 2000 * (retryCount + 1))
+          );
+          return fetchRecommendation(token, retryCount + 1);
+        } else {
+          // Tous les retries épuisés, créer un fallback
+          console.log(`Max retries reached, creating fallback for ${token}`);
+
+          const fallbackRecommendation: TradingRecommendation = {
+            token_symbol: token,
+            action: "hold",
+            confidence: 0.05,
+            confidence_level: "Critical (Timeout)",
+            reasoning: `🔄 Backend analysis timed out after ${
+              maxRetries + 1
+            } attempts. This is a conservative recommendation. The backend may be experiencing high load or connectivity issues. Please try again in a few minutes.`,
+            news_sentiment: "neutral",
+            price_target: null,
+            stop_loss: null,
+            timestamp: new Date().toISOString(),
+            received_at: new Date().toISOString(),
+          };
+
+          setRecommendation(fallbackRecommendation);
+          setError(
+            "⏱️ Analysis timed out. Using conservative fallback recommendation."
+          );
+        }
+      } else if (
+        err.message?.includes("Failed to fetch") ||
+        err.message?.includes("NetworkError")
+      ) {
+        // Erreur de réseau
+        if (retryCount < maxRetries) {
+          console.log(
+            `Network error, retrying... (${retryCount + 1}/${maxRetries})`
+          );
+          setError(
+            `🌐 Network error, retrying... (${retryCount + 1}/${maxRetries})`
+          );
+
+          await new Promise((resolve) =>
+            setTimeout(resolve, 3000 * (retryCount + 1))
+          );
+          return fetchRecommendation(token, retryCount + 1);
+        } else {
+          const fallbackRecommendation: TradingRecommendation = {
+            token_symbol: token,
+            action: "hold",
+            confidence: 0.05,
+            confidence_level: "Critical (Network)",
+            reasoning: `🌐 Unable to connect to analysis backend after ${
+              maxRetries + 1
+            } attempts. This could be due to network issues or backend maintenance. Please check your connection and try again later.`,
+            news_sentiment: "neutral",
+            price_target: null,
+            stop_loss: null,
+            timestamp: new Date().toISOString(),
+            received_at: new Date().toISOString(),
+          };
+
+          setRecommendation(fallbackRecommendation);
+          setError(
+            "🌐 Network connection failed. Using fallback recommendation."
+          );
+        }
+      } else {
+        // Autres erreurs
+        if (retryCount < maxRetries) {
+          console.log(
+            `Unexpected error, retrying... (${retryCount + 1}/${maxRetries}):`,
+            err
+          );
+          setError(
+            `⚠️ Unexpected error, retrying... (${retryCount + 1}/${maxRetries})`
+          );
+
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * (retryCount + 1))
+          );
+          return fetchRecommendation(token, retryCount + 1);
+        } else {
+          setError(
+            `❌ Analysis failed: ${
+              err.message || "Unknown error"
+            }. Please try again later.`
+          );
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -430,31 +628,67 @@ export default function TradingScreen() {
         )}
 
         {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View
+            style={[
+              styles.errorContainer,
+              error.includes("fallback") && styles.fallbackErrorContainer,
+              error.includes("retrying") && styles.retryErrorContainer,
+            ]}
+          >
+            <Text
+              style={[
+                styles.errorText,
+                error.includes("fallback") && styles.fallbackErrorText,
+                error.includes("retrying") && styles.retryErrorText,
+              ]}
+            >
+              {error}
+            </Text>
+            {error.includes("fallback") && (
+              <Text style={styles.errorSubtext}>
+                💡 Tip: Try refreshing in a few minutes for a complete analysis
+              </Text>
+            )}
+            {error.includes("retrying") && (
+              <ActivityIndicator
+                size="small"
+                color="#FF9800"
+                style={styles.retryIndicator}
+              />
+            )}
           </View>
         )}
 
         {recommendation && !loading && (
           <View style={styles.recommendationContainer}>
             <Text style={styles.sectionTitle}>
-              Recommendation for {recommendation.token}
+              Recommendation for {recommendation.token_symbol}
             </Text>
 
             <View
               style={[
                 styles.recommendationCard,
                 recommendation.confidence <= 0.2 && styles.warningCard,
+                recommendation.confidence <= 0.1 && styles.fallbackCard,
               ]}
             >
-              {recommendation.confidence <= 0.2 && (
+              {recommendation.confidence <= 0.1 ? (
+                <View style={styles.fallbackBanner}>
+                  <Text style={styles.fallbackText}>
+                    🔄 FALLBACK ANALYSIS 🔄
+                  </Text>
+                  <Text style={styles.fallbackSubtext}>
+                    Backend unavailable - Conservative recommendation
+                  </Text>
+                </View>
+              ) : recommendation.confidence <= 0.2 ? (
                 <View style={styles.warningBanner}>
                   <Text style={styles.warningText}>⚠️ HIGH RISK TOKEN ⚠️</Text>
                   <Text style={styles.warningSubtext}>
                     Unknown or suspicious token detected
                   </Text>
                 </View>
-              )}
+              ) : null}
 
               <View style={styles.actionContainer}>
                 <Text
@@ -484,91 +718,109 @@ export default function TradingScreen() {
               </View>
 
               {/* Market Context Section */}
-              {recommendation.market_context && (
+              {(recommendation.current_price ||
+                recommendation.trend ||
+                recommendation.support ||
+                recommendation.resistance) && (
                 <View style={styles.marketContextContainer}>
                   <Text style={styles.sectionHeader}>Market Analysis</Text>
 
-                  <View style={styles.marketDataRow}>
-                    <View style={styles.marketDataItem}>
-                      <Text style={styles.marketLabel}>Current Price</Text>
-                      <Text style={styles.marketValue}>
-                        $
-                        {recommendation.market_context.current_price.toFixed(6)}
-                      </Text>
-                    </View>
+                  {recommendation.current_price && (
+                    <View style={styles.marketDataRow}>
+                      <View style={styles.marketDataItem}>
+                        <Text style={styles.marketLabel}>Current Price</Text>
+                        <Text style={styles.marketValue}>
+                          ${recommendation.current_price.toFixed(6)}
+                        </Text>
+                      </View>
 
-                    <View style={styles.marketDataItem}>
-                      <Text style={styles.marketLabel}>Trend</Text>
-                      <Text
-                        style={[
-                          styles.marketValue,
-                          {
-                            color: getTrendColor(
-                              recommendation.market_context.trend
-                            ),
-                          },
-                        ]}
-                      >
-                        {recommendation.market_context.trend.toUpperCase()}
-                      </Text>
+                      {recommendation.trend && (
+                        <View style={styles.marketDataItem}>
+                          <Text style={styles.marketLabel}>Trend</Text>
+                          <Text
+                            style={[
+                              styles.marketValue,
+                              {
+                                color: getTrendColor(recommendation.trend),
+                              },
+                            ]}
+                          >
+                            {recommendation.trend.toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                  </View>
+                  )}
 
-                  <View style={styles.supportResistanceContainer}>
-                    <View style={styles.levelItem}>
-                      <Text style={[styles.levelLabel, { color: "#F44336" }]}>
-                        Support
-                      </Text>
-                      <Text style={[styles.levelValue, { color: "#F44336" }]}>
-                        ${recommendation.market_context.support.toFixed(6)}
-                      </Text>
-                      <Text style={styles.levelDistance}>
-                        -
-                        {calculateDistance(
-                          recommendation.market_context.current_price,
-                          recommendation.market_context.support
-                        )}
-                      </Text>
-                    </View>
+                  {recommendation.support &&
+                    recommendation.resistance &&
+                    recommendation.current_price && (
+                      <>
+                        <View style={styles.supportResistanceContainer}>
+                          <View style={styles.levelItem}>
+                            <Text
+                              style={[styles.levelLabel, { color: "#F44336" }]}
+                            >
+                              Support
+                            </Text>
+                            <Text
+                              style={[styles.levelValue, { color: "#F44336" }]}
+                            >
+                              ${recommendation.support.toFixed(6)}
+                            </Text>
+                            <Text style={styles.levelDistance}>
+                              -
+                              {calculateDistance(
+                                recommendation.current_price,
+                                recommendation.support
+                              )}
+                            </Text>
+                          </View>
 
-                    <View style={styles.levelItem}>
-                      <Text style={[styles.levelLabel, { color: "#4CAF50" }]}>
-                        Resistance
-                      </Text>
-                      <Text style={[styles.levelValue, { color: "#4CAF50" }]}>
-                        ${recommendation.market_context.resistance.toFixed(6)}
-                      </Text>
-                      <Text style={styles.levelDistance}>
-                        +
-                        {calculateDistance(
-                          recommendation.market_context.current_price,
-                          recommendation.market_context.resistance
-                        )}
-                      </Text>
-                    </View>
-                  </View>
+                          <View style={styles.levelItem}>
+                            <Text
+                              style={[styles.levelLabel, { color: "#4CAF50" }]}
+                            >
+                              Resistance
+                            </Text>
+                            <Text
+                              style={[styles.levelValue, { color: "#4CAF50" }]}
+                            >
+                              ${recommendation.resistance.toFixed(6)}
+                            </Text>
+                            <Text style={styles.levelDistance}>
+                              +
+                              {calculateDistance(
+                                recommendation.current_price,
+                                recommendation.resistance
+                              )}
+                            </Text>
+                          </View>
+                        </View>
 
-                  <View style={styles.pricePositionContainer}>
-                    <Text style={styles.pricePositionLabel}>
-                      Price Position (Support ↔ Resistance)
-                    </Text>
-                    <View style={styles.priceBar}>
-                      <Text style={styles.supportLabel}>S</Text>
-                      <View
-                        style={[
-                          styles.priceIndicator,
-                          {
-                            left: `${calculatePricePosition(
-                              recommendation.market_context.current_price,
-                              recommendation.market_context.support,
-                              recommendation.market_context.resistance
-                            )}%`,
-                          },
-                        ]}
-                      />
-                      <Text style={styles.resistanceLabel}>R</Text>
-                    </View>
-                  </View>
+                        <View style={styles.pricePositionContainer}>
+                          <Text style={styles.pricePositionLabel}>
+                            Price Position (Support ↔ Resistance)
+                          </Text>
+                          <View style={styles.priceBar}>
+                            <Text style={styles.supportLabel}>S</Text>
+                            <View
+                              style={[
+                                styles.priceIndicator,
+                                {
+                                  left: `${calculatePricePosition(
+                                    recommendation.current_price,
+                                    recommendation.support,
+                                    recommendation.resistance
+                                  )}%`,
+                                },
+                              ]}
+                            />
+                            <Text style={styles.resistanceLabel}>R</Text>
+                          </View>
+                        </View>
+                      </>
+                    )}
                 </View>
               )}
 
@@ -623,7 +875,7 @@ export default function TradingScreen() {
                 {new Date(recommendation.timestamp).toLocaleString("en-US")}
               </Text>
 
-              {/* Trading Intent Buttons */}
+              {/* Trading Intent Buttons - Désactivés pour les fallbacks */}
               {recommendation.confidence > 0.3 && (
                 <View style={styles.intentButtonsContainer}>
                   <Text style={styles.intentTitle}>Trading Intents</Text>
@@ -639,12 +891,15 @@ export default function TradingScreen() {
                           <TouchableOpacity
                             style={[styles.intentButton, styles.buyButton]}
                             onPress={() =>
-                              handleTradingIntent("buy", recommendation.token)
+                              handleTradingIntent(
+                                "buy",
+                                recommendation.token_symbol
+                              )
                             }
                             activeOpacity={0.8}
                           >
                             <Text style={styles.intentButtonText}>
-                              📈 BUY {recommendation.token}
+                              📈 BUY {recommendation.token_symbol}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -652,12 +907,15 @@ export default function TradingScreen() {
                           <TouchableOpacity
                             style={[styles.intentButton, styles.sellButton]}
                             onPress={() =>
-                              handleTradingIntent("sell", recommendation.token)
+                              handleTradingIntent(
+                                "sell",
+                                recommendation.token_symbol
+                              )
                             }
                             activeOpacity={0.8}
                           >
                             <Text style={styles.intentButtonText}>
-                              📉 SELL {recommendation.token}
+                              📉 SELL {recommendation.token_symbol}
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -684,7 +942,7 @@ export default function TradingScreen() {
                                 recommendation.action === "sell"
                                   ? "sell"
                                   : "buy",
-                                recommendation.token,
+                                recommendation.token_symbol,
                                 recommendation.price_target || undefined,
                                 "Target Price"
                               )
@@ -722,7 +980,7 @@ export default function TradingScreen() {
                             onPress={() =>
                               handleTradingIntent(
                                 "sell",
-                                recommendation.token,
+                                recommendation.token_symbol,
                                 recommendation.stop_loss || undefined,
                                 "Stop Loss"
                               )
@@ -752,7 +1010,7 @@ export default function TradingScreen() {
                   )}
 
                   {/* Support/Resistance Intent Buttons */}
-                  {recommendation.market_context && (
+                  {recommendation.support && recommendation.resistance && (
                     <View style={styles.intentSection}>
                       <Text style={styles.intentSectionTitle}>
                         Technical Levels
@@ -766,8 +1024,8 @@ export default function TradingScreen() {
                           onPress={() =>
                             handleTradingIntent(
                               "buy",
-                              recommendation.token,
-                              recommendation.market_context!.support,
+                              recommendation.token_symbol,
+                              recommendation.support,
                               "Support Level"
                             )
                           }
@@ -787,7 +1045,7 @@ export default function TradingScreen() {
                               { color: "#2196F3" },
                             ]}
                           >
-                            ${recommendation.market_context.support.toFixed(6)}
+                            ${recommendation.support.toFixed(6)}
                           </Text>
                         </TouchableOpacity>
 
@@ -799,8 +1057,8 @@ export default function TradingScreen() {
                           onPress={() =>
                             handleTradingIntent(
                               "sell",
-                              recommendation.token,
-                              recommendation.market_context!.resistance,
+                              recommendation.token_symbol,
+                              recommendation.resistance,
                               "Resistance Level"
                             )
                           }
@@ -820,10 +1078,7 @@ export default function TradingScreen() {
                               { color: "#FF9800" },
                             ]}
                           >
-                            $
-                            {recommendation.market_context.resistance.toFixed(
-                              6
-                            )}
+                            ${recommendation.resistance.toFixed(6)}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1326,5 +1581,54 @@ const styles = StyleSheet.create({
   resistanceButton: {
     backgroundColor: "rgba(255, 152, 0, 0.1)",
     borderColor: "#FF9800",
+  },
+  // Styles pour les états d'erreur améliorés
+  fallbackErrorContainer: {
+    backgroundColor: "rgba(255, 152, 0, 0.15)",
+    borderColor: "rgba(255, 152, 0, 0.4)",
+  },
+  retryErrorContainer: {
+    backgroundColor: "rgba(33, 150, 243, 0.15)",
+    borderColor: "rgba(33, 150, 243, 0.4)",
+  },
+  fallbackErrorText: {
+    color: "#FF9800",
+  },
+  retryErrorText: {
+    color: "#2196F3",
+  },
+  errorSubtext: {
+    fontSize: 12,
+    color: "rgba(255, 152, 0, 0.8)",
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+  retryIndicator: {
+    marginTop: 8,
+  },
+  // Styles pour les cartes et bannières de fallback
+  fallbackCard: {
+    borderColor: "#FF9800",
+    backgroundColor: "rgba(255, 152, 0, 0.15)",
+  },
+  fallbackBanner: {
+    backgroundColor: "#FF9800",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  fallbackText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  fallbackSubtext: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 4,
   },
 });

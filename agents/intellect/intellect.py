@@ -302,26 +302,48 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
         
         await ctx.send(AI_AGENT_ADDRESS, prompt)
         
-        ctx.logger.info("⏳ En attente de la réponse de Claude AI (5s max)...")
+        ctx.logger.info("⏳ En attente de la réponse de Claude AI (45s max avec retry)...")
         ctx.logger.info(f"🔍 Debug - AI_AGENT_ADDRESS: {AI_AGENT_ADDRESS}")
         
         import asyncio
-        for attempt in range(5):  # Seulement 5 secondes
-            await asyncio.sleep(1)
-            
-            if request_id in ai_responses:
-                ctx.logger.info(f"✅ Réponse reçue de Claude AI!")
-                response = ai_responses[request_id]
-                
-                # Nettoyer les variables
-                del ai_responses[request_id]
-                if request_id in pending_requests:
-                    del pending_requests[request_id]
-                
-                return response
         
-        # Timeout - retourner une recommandation par défaut
-        ctx.logger.warning("⏰ Timeout - Claude AI ne répond pas, retour d'une recommandation par défaut")
+        # Configuration retry avec backoff exponentiel
+        max_retries = 3
+        base_timeout = 15  # 15 secondes par tentative
+        
+        for retry_attempt in range(max_retries):
+            current_timeout = base_timeout * (2 ** retry_attempt)  # 15s, 30s, 60s
+            ctx.logger.info(f"🔄 Tentative {retry_attempt + 1}/{max_retries} - timeout: {current_timeout}s")
+            
+            # Attendre la réponse avec timeout étendu
+            for attempt in range(current_timeout):
+                await asyncio.sleep(1)
+                
+                if request_id in ai_responses:
+                    ctx.logger.info(f"✅ Réponse reçue de Claude AI après {retry_attempt + 1} tentative(s)!")
+                    response = ai_responses[request_id]
+                    
+                    # Nettoyer les variables
+                    del ai_responses[request_id]
+                    if request_id in pending_requests:
+                        del pending_requests[request_id]
+                    
+                    return response
+            
+            # Si pas de réponse, retry (sauf dernière tentative)
+            if retry_attempt < max_retries - 1:
+                ctx.logger.warning(f"⏰ Timeout tentative {retry_attempt + 1} - retry dans 3s...")
+                await asyncio.sleep(3)
+                
+                # Renvoyer la requête pour retry
+                try:
+                    await ctx.send(AI_AGENT_ADDRESS, prompt)
+                    ctx.logger.info(f"🔄 Requête renvoyée (retry {retry_attempt + 2})")
+                except Exception as retry_error:
+                    ctx.logger.error(f"❌ Erreur lors du retry: {retry_error}")
+        
+        # Timeout final après tous les retries
+        ctx.logger.warning("⏰ Timeout final - Claude AI ne répond pas après 3 tentatives, retour d'une recommandation par défaut")
         
         return {
             "type": "hold_position",
@@ -707,9 +729,11 @@ async def generate_smart_recommendation(ctx: Context, token_symbol: str, market_
         token_lower = token_symbol.lower()
         major_tokens = ['eth', 'ethereum', 'btc', 'bitcoin', 'usdc', 'usdt', 'bnb', 'ada', 'sol', 'matic', 'avax', 'dot', 'link', 'uni']
         l2_tokens = ['arb', 'arbitrum', 'op', 'optimism', 'matic', 'polygon', 'flow']
+        defi_tokens = ['uni', 'uniswap', 'sushi', 'sushiswap', 'aave', 'comp', 'compound', 'mkr', 'maker', 'crv', 'curve', 'bal', 'balancer', 'snx', 'synthetix', 'ren', 'republic', 'yfi', 'yearn']
         
         is_major = any(token in token_lower for token in major_tokens)
         is_l2 = any(token in token_lower for token in l2_tokens)
+        is_defi = any(token in token_lower for token in defi_tokens)
         
         # Calcul des niveaux de prix techniques
         support = technical_levels.get('support', current_price * 0.9)
@@ -773,15 +797,118 @@ async def generate_smart_recommendation(ctx: Context, token_symbol: str, market_
                 stop_loss = current_price * 0.90
                 reasoning = f"Mixed signals for {token_symbol}. Established project but unclear short-term direction. " \
                            f"Monitor at ${current_price:.4f} with stop at ${stop_loss:.4f}."
+        elif is_defi:
+            # Token DeFi établi -> analyse orientée DeFi
+            if sentiment == "positive" or sentiment_score >= 1:
+                action = "buy"
+                confidence = 0.72 + min(0.12, sentiment_score * 0.03)
+                reasoning = f"{token_symbol} is an established DeFi protocol token. " \
+                           f"Positive sentiment suggests growing protocol adoption and TVL. " \
+                           f"DeFi tokens benefit from ecosystem growth and yield opportunities. Sentiment: +{sentiment_score}."
+                price_target = 100 * (1.12 + sentiment_score * 0.02)
+                stop_loss = 100 * 0.85
+            elif sentiment == "negative":
+                action = "hold"
+                confidence = 0.58
+                reasoning = f"{token_symbol} is a DeFi protocol token facing negative sentiment. " \
+                           f"DeFi tokens can be volatile. Consider protocol health, TVL trends, " \
+                           f"and broader DeFi market conditions before major decisions."
+                price_target = None
+                stop_loss = 100 * 0.80
+            else:
+                action = "buy"
+                confidence = 0.65
+                reasoning = f"{token_symbol} represents established DeFi infrastructure. " \
+                           f"Neutral sentiment with long-term potential from DeFi sector growth. " \
+                           f"Monitor protocol metrics and total value locked (TVL) trends."
+                price_target = 100 * 1.08
+                stop_loss = 100 * 0.87
+                
+        elif any(token in token_lower for token in major_tokens):
+            # Token majeur -> recommandation basée sur le sentiment et l'analyse technique
+            if sentiment == "positive" or sentiment_score >= 1:
+                action = "buy"
+                confidence = 0.75 + min(0.15, sentiment_score * 0.03)  # Plus de sentiment = plus de confiance
+                reasoning = f"{token_symbol} is a well-established cryptocurrency showing positive market sentiment. " \
+                           f"Recent news analysis suggests favorable conditions. Sentiment score: +{sentiment_score}. " \
+                           f"Consider accumulating with proper risk management."
+                price_target = 100 * (1.08 + sentiment_score * 0.02)  # Prix plus élevé si sentiment très positif
+                stop_loss = 100 * 0.88
+            elif sentiment == "negative" or sentiment_score <= -2:
+                action = "sell"
+                confidence = 0.72 + min(0.15, abs(sentiment_score) * 0.03)
+                reasoning = f"{token_symbol} showing negative sentiment in recent market analysis. " \
+                           f"Sentiment score: {sentiment_score}. Consider reducing exposure or taking profits " \
+                           f"until market conditions improve. Monitor support levels closely."
+                price_target = 100 * (0.92 - abs(sentiment_score) * 0.01)
+                stop_loss = 100 * 1.05
+            else:
+                # Sentiment neutre mais token majeur -> analyser d'autres facteurs
+                # Favoriser légèrement le buy pour les tokens établis en l'absence de signaux négatifs
+                action = "buy"
+                confidence = 0.60  # Confiance modérée
+                reasoning = f"{token_symbol} is a solid, established cryptocurrency with neutral market sentiment. " \
+                           f"In the absence of negative signals, established tokens often present accumulation opportunities. " \
+                           f"Consider dollar-cost averaging strategy with risk management."
+                price_target = 100 * 1.05  # Objectif conservateur
+                stop_loss = 100 * 0.90
+                
+        elif any(token in token_lower for token in l2_tokens):
+            # Token Layer 2 -> recommandation basée sur l'écosystème de scaling
+            if sentiment == "positive" or sentiment_score >= 1:
+                action = "buy"
+                confidence = 0.70 + min(0.15, sentiment_score * 0.03)
+                reasoning = f"{token_symbol} is part of the growing Layer 2/scaling ecosystem. " \
+                           f"Positive sentiment suggests strong adoption potential. L2 tokens benefit " \
+                           f"from Ethereum scaling narrative and increasing DeFi activity. Sentiment: +{sentiment_score}."
+                price_target = 100 * (1.10 + sentiment_score * 0.02)
+                stop_loss = 100 * 0.90
+            elif sentiment == "negative":
+                action = "hold"  # Plus conservateur pour L2 que pour majors
+                confidence = 0.55
+                reasoning = f"{token_symbol} represents Layer 2 infrastructure with current negative sentiment. " \
+                           f"However, scaling solutions remain essential. Consider waiting for better entry " \
+                           f"points rather than selling. Monitor ecosystem developments."
+                price_target = None
+                stop_loss = 100 * 0.85
+            else:
+                # Sentiment neutre pour L2 -> légèrement bullish à long terme
+                action = "buy"
+                confidence = 0.65
+                reasoning = f"{token_symbol} represents Layer 2 scaling infrastructure. " \
+                           f"Neutral sentiment with long-term bullish outlook as Ethereum scaling gains adoption. " \
+                           f"L2 tokens are positioned to benefit from increasing network activity."
+                price_target = 100 * 1.08
+                stop_loss = 100 * 0.88
+            
         else:
-            # Token inconnu ou risqué
-            action = "hold"
-            confidence = 0.25
-            price_target = None
-            stop_loss = None
-            reasoning = f"Unknown or high-risk token {token_symbol}. Insufficient market data and news coverage " \
-                       f"for confident trading recommendation. Current price: ${current_price:.4f}. " \
-                       f"Conduct thorough research before trading."
+            # Token inconnu mais pas nécessairement suspect -> analyse plus nuancée
+            if sentiment == "positive" and sentiment_score >= 2:
+                action = "buy"
+                confidence = 0.45  # Confiance modérée pour tokens inconnus même avec bon sentiment
+                reasoning = f"{token_symbol} is not widely recognized in major rankings but shows strong positive sentiment. " \
+                           f"Sentiment score: +{sentiment_score}. Could be an emerging opportunity, but requires caution. " \
+                           f"Recommend small position size and thorough research on project fundamentals."
+                price_target = 100 * 1.15  # Potentiel plus élevé pour tokens émergents
+                stop_loss = 100 * 0.85  # Stop plus serré
+            elif sentiment == "negative":
+                action = "hold"  # Éviter de sell des tokens inconnus sans plus d'infos
+                confidence = 0.35
+                reasoning = f"{token_symbol} is not widely recognized and shows negative sentiment. " \
+                           f"Insufficient data for confident sell recommendation. If holding, consider " \
+                           f"exit strategy. If not holding, avoid entry until clearer information available."
+                price_target = None
+                stop_loss = 100 * 0.80
+            else:
+                # Sentiment neutre, token inconnu -> légère préférence hold avec recherche
+                action = "hold"
+                confidence = 0.40  # Confiance plus élevée qu'avant
+                reasoning = f"{token_symbol} is not widely recognized in major cryptocurrency rankings. " \
+                           f"Neutral sentiment suggests no immediate catalysts. Recommend thorough research " \
+                           f"on project team, use case, tokenomics, and community before trading decisions. " \
+                           f"Consider market cap, volume, and development activity."
+                price_target = None
+                stop_loss = 100 * 0.85
         
         # Détermination du sentiment final
         if sentiment_score >= 3:
@@ -874,214 +1001,187 @@ async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str, 
         # Créer un ID unique pour cette demande
         request_id = str(uuid.uuid4())
         
-        # Créer un prompt spécialisé pour l'analyse de trading
-        trading_prompt = f"""
-        En tant qu'analyste financier crypto expert, analysez les actualités récentes et fournissez une recommandation de trading précise et détaillée pour {token_symbol}.
+        # DÉTECTION DE TOKENS EN PREMIER - AVANT TOUT LE RESTE
+        token_lower = token_symbol.lower()
+        suspicious_patterns = ['scam', 'ponzi', 'fake', 'test', 'spam', 'rug', 'honeypot']
+        very_risky_patterns = ['.com', '.net', '.info', '.biz', 'baby', 'safe', 'moon', 'inu', 'doge', 'vanity', 'rare']
         
-        Actualités récentes (analysez le sentiment et l'impact):
-        {json.dumps(news_data[:5], indent=2) if news_data else "Aucune actualité disponible"}
+        is_suspicious = any(pattern in token_lower for pattern in suspicious_patterns)
+        is_very_risky = any(pattern in token_lower for pattern in very_risky_patterns)
         
-        ANALYSE REQUISE:
-        1. Sentiment global du marché basé sur les actualités (très positif/positif/neutre/négatif/très négatif)
-        2. Impact spécifique sur {token_symbol} et sa blockchain/écosystème
-        3. Analyse technique: niveaux de support/résistance approximatifs
-        4. Catalyseurs identifiés (partenariats, mises à jour, adoption, régulation)
-        5. Risques et opportunités à court terme
-
-        RECOMMANDATION PRÉCISE:
-        - Action: "buy" (fort potentiel), "sell" (risques élevés), ou "hold" (attendre des signaux)
-        - Confidence: 0.7-0.95 (basée sur la force des signaux)
-        - Prix cible réaliste (si buy/sell) basé sur l'analyse technique
-        - Stop loss recommandé pour gestion du risque
-        - Justification détaillée avec données spécifiques
-
-        IMPORTANT: 
-        - Soyez spécifique et évitez les généralités
-        - Basez vos prix sur l'analyse technique réelle
-        - Variez les recommandations selon le token et les actualités
-        - Confidence élevée (>0.8) seulement si signaux très forts
-        
-        Répondez UNIQUEMENT au format JSON strict:
-        {{
-            "recommendation": "buy/sell/hold",
-            "confidence": 0.XX,
-            "reasoning": "analyse technique détaillée avec prix et catalyseurs spécifiques",
-            "price_target": prix_cible_ou_null,
-            "stop_loss": stop_loss_recommandé,
-            "news_sentiment": "very_positive/positive/neutral/negative/very_negative",
-            "timestamp": "{datetime.now().isoformat()}",
-            "request_id": "{request_id}",
-            "technical_levels": {{
-                "support": prix_support,
-                "resistance": prix_resistance
-            }}
-        }}
-        """
+        # Adapter le prompt selon le type de token pour que Claude analyse intelligemment
+        if is_suspicious or is_very_risky:
+            ctx.logger.info(f"🚨 Token de merde détecté ({token_symbol}) - SELL automatique sans Claude")
+            
+            # Retourner directement SELL pour les shitcoins
+            trading_rec = TradingRecommendation(
+                token_symbol=token_symbol,
+                recommendation="sell",
+                confidence=0.95,  # Très haute confiance pour SELL les shitcoins
+                reasoning=f"⚠️ SHITCOIN DÉTECTÉ: {token_symbol} présente des patterns suspects typiques des arnaques crypto. Vente immédiate recommandée pour éviter pertes importantes.",
+                price_target=None,
+                stop_loss=None,
+                news_sentiment="very_negative",
+                timestamp=datetime.now().isoformat()
+            )
+            
+            await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
+            ctx.logger.info(f"📤 SELL automatique envoyé pour shitcoin {token_symbol}")
+            
+            return {
+                "recommendation": "sell",
+                "confidence": 0.95,
+                "reasoning": f"Token suspect détecté - vente immédiate recommandée",
+                "price_target": None,
+                "stop_loss": None,
+                "news_sentiment": "very_negative"
+            }
+            
+        else:
+            # Prompt ultra-simple pour tokens normaux
+            trading_prompt = f"Analyser {token_symbol} rapidement - buy/sell/hold et pourquoi ?"
         
         # Stocker la demande en attente
         pending_requests[request_id] = "trading_analysis"
         
-        # Créer le prompt structuré pour Claude
+        # Créer le prompt structuré pour Claude avec schéma ultra-simple
         prompt = StructuredOutputPrompt(
             prompt=trading_prompt,
             output_schema={
                 "type": "object",
                 "properties": {
-                    "recommendation": {"type": "string", "enum": ["buy", "sell", "hold"]},
-                    "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-                    "reasoning": {"type": "string", "minLength": 50},
-                    "price_target": {"type": ["number", "null"]},
-                    "stop_loss": {"type": "number"},
-                    "news_sentiment": {"type": "string", "enum": ["very_positive", "positive", "neutral", "negative", "very_negative"]},
-                    "timestamp": {"type": "string"},
-                    "request_id": {"type": "string"},
-                    "technical_levels": {
-                        "type": "object",
-                        "properties": {
-                            "support": {"type": "number"},
-                            "resistance": {"type": "number"}
-                        }
-                    }
+                    "recommendation": {"type": "string"},
+                    "confidence": {"type": "number"},
+                    "reasoning": {"type": "string"}
                 },
-                "required": ["recommendation", "confidence", "reasoning", "stop_loss", "news_sentiment", "request_id"]
+                "required": ["recommendation", "confidence", "reasoning"]
             }
         )
         
-        # Envoyer à Claude pour analyse
+        # Envoyer à Claude pour analyse (tokens normaux seulement)
         await ctx.send(AI_AGENT_ADDRESS, prompt)
-        ctx.logger.info("⏳ En attente de l'analyse de Claude...")
+        ctx.logger.info(f"⏳ En attente de l'analyse Claude pour {token_symbol} (prompt court)...")
         
-        # Attendre la réponse de Claude (timeout court)
+        # Configuration avec timeout plus long pour tokens normaux
         import asyncio
-        for attempt in range(5):
-            await asyncio.sleep(1)
+        max_retries = 2
+        base_timeout = 20  # 20 secondes par tentative - plus long pour être sûr
+        
+        for retry_attempt in range(max_retries):
+            current_timeout = base_timeout
+            ctx.logger.info(f"🔄 Tentative {retry_attempt + 1}/{max_retries} - timeout: {current_timeout}s")
             
-            if request_id in ai_responses:
-                ctx.logger.info("✅ Analyse reçue de Claude!")
-                analysis = ai_responses[request_id]
+            # Attendre la réponse de Claude
+            for attempt in range(current_timeout):
+                await asyncio.sleep(1)
                 
-                # Nettoyer
-                del ai_responses[request_id]
-                if request_id in pending_requests:
-                    del pending_requests[request_id]
+                if request_id in ai_responses:
+                    ctx.logger.info(f"✅ Analyse Claude reçue après {retry_attempt + 1} tentative(s) ({attempt + 1}s)!")
+                    analysis = ai_responses[request_id]
+                    
+                    # Nettoyer
+                    del ai_responses[request_id]
+                    if request_id in pending_requests:
+                        del pending_requests[request_id]
+                    
+                    # Créer la recommandation pour Simon avec valeurs par défaut pour schéma simplifié
+                    trading_rec = TradingRecommendation(
+                        token_symbol=token_symbol,
+                        recommendation=analysis.get("recommendation", "hold"),
+                        confidence=analysis.get("confidence", 0.5),
+                        reasoning=analysis.get("reasoning", "Analyse basée sur les actualités récentes"),
+                        price_target=None,  # Pas de price_target dans le schéma simplifié
+                        stop_loss=None,     # Pas de stop_loss dans le schéma simplifié
+                        news_sentiment="neutral",  # Pas de sentiment dans le schéma simplifié
+                        timestamp=datetime.now().isoformat()
+                    )
+                    
+                    # Envoyer à Simon
+                    await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
+                    ctx.logger.info(f"📤 Recommandation Claude envoyée à Simon pour {token_symbol}: {analysis.get('recommendation')} ({analysis.get('confidence', 0)*100:.0f}%)")
+                    
+                    return analysis
+            
+            # Si pas de réponse, retry (sauf dernière tentative)
+            if retry_attempt < max_retries - 1:
+                ctx.logger.warning(f"⏰ Timeout tentative {retry_attempt + 1} - retry dans 3s...")
+                await asyncio.sleep(3)
                 
-                # Créer la recommandation pour Simon
-                trading_rec = TradingRecommendation(
-                    token_symbol=token_symbol,
-                    recommendation=analysis.get("recommendation", "hold"),
-                    confidence=analysis.get("confidence", 0.5),
-                    reasoning=analysis.get("reasoning", "Analyse basée sur les actualités récentes"),
-                    price_target=analysis.get("price_target"),
-                    stop_loss=analysis.get("stop_loss"),
-                    news_sentiment=analysis.get("news_sentiment", "neutral"),
-                    timestamp=datetime.now().isoformat()
-                )
-                
-                # Envoyer à Simon
-                await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
-                ctx.logger.info(f"📤 Recommandation envoyée à Simon pour {token_symbol}")
-                
-                return analysis
+                # Renvoyer la requête pour retry
+                try:
+                    await ctx.send(AI_AGENT_ADDRESS, prompt)
+                    ctx.logger.info(f"🔄 Requête renvoyée à Claude (retry {retry_attempt + 2})")
+                except Exception as retry_error:
+                    ctx.logger.error(f"❌ Erreur lors du retry: {retry_error}")
+
+        # Timeout final - Claude ne répond pas
+        ctx.logger.warning(f"⏰ Claude ne répond pas pour {token_symbol} après {max_retries} tentatives - Fallback intelligent")
         
-        # Timeout - générer une recommandation intelligente de fallback
-        ctx.logger.warning("⏰ Timeout - génération d'une recommandation intelligente")
+        # Analyser le token pour générer une recommandation intelligente
+        major_tokens = ['eth', 'ethereum', 'btc', 'bitcoin', 'usdc', 'usdt', 'bnb', 'ada', 'cardano', 
+                       'sol', 'solana', 'matic', 'polygon', 'avax', 'avalanche', 'dot', 'polkadot', 
+                       'link', 'chainlink', 'uni', 'uniswap', 'atom', 'cosmos', 'algo', 'algorand',
+                       'xrp', 'ripple', 'ltc', 'litecoin', 'bch', 'bitcoin cash', 'xlm', 'stellar']
         
-        # Analyser le token pour détecter s'il est connu ou suspect
-        token_lower = token_symbol.lower()
+        l2_tokens = ['arb', 'arbitrum', 'op', 'optimism', 'flow', 'immx', 'immutable',
+                    'zksync', 'zk', 'metis', 'boba', 'loopring', 'lrc', 'base', 'mantle', 'mnt']
         
-        # Tokens bien connus et établis
-        major_tokens = ['eth', 'ethereum', 'btc', 'bitcoin', 'usdc', 'usdt', 'bnb', 'ada', 'sol', 'matic', 'avax', 'dot', 'link', 'uni']
+        defi_tokens = ['uni', 'uniswap', 'sushi', 'sushiswap', 'aave', 'comp', 'compound', 'mkr', 'maker', 
+                      'crv', 'curve', 'bal', 'balancer', 'snx', 'synthetix', 'ren', 'republic', 'yfi', 'yearn']
         
-        # Tokens Layer 2 et ecosystème connus  
-        l2_tokens = ['arb', 'arbitrum', 'op', 'optimism', 'matic', 'polygon', 'flow']
-        
-        # Détection de tokens suspects (domaines web, noms étranges)
-        suspicious_patterns = ['.io', '.org', '.com', '.net', 'tron', 'trx', 'rare', 'vanity', 'scam', 'moon', 'safe', 'baby', 'doge', 'shib', 'inu']
-        is_suspicious = any(pattern in token_lower for pattern in suspicious_patterns)
-        
-        # Analyser les actualités localement pour un contexte minimal
+        # Analyser le sentiment des news
         sentiment = "neutral"
         sentiment_score = 0
+        
         if news_data:
-            all_text = " ".join([str(article.get("title", "")) + " " + str(article.get("content", "")) for article in news_data[:3]])
-            positive_words = ["rise", "bull", "growth", "gain", "increase", "positive", "up", "rally"]
-            negative_words = ["fall", "bear", "decline", "loss", "decrease", "negative", "down", "crash", "dump"]
+            positive_words = ['bullish', 'gain', 'positive', 'up', 'growth', 'partnership', 'adoption', 'upgrade']
+            negative_words = ['bearish', 'loss', 'negative', 'down', 'crash', 'hack', 'regulation', 'ban']
             
-            positive_count = sum(1 for word in positive_words if word in all_text.lower())
-            negative_count = sum(1 for word in negative_words if word in all_text.lower())
-            sentiment_score = positive_count - negative_count
+            total_score = 0
+            for article in news_data[:10]:
+                title_content = (article.get('title', '') + ' ' + article.get('description', '')).lower()
+                pos_count = sum(1 for word in positive_words if word in title_content)
+                neg_count = sum(1 for word in negative_words if word in title_content)
+                total_score += pos_count - neg_count
             
-            if sentiment_score >= 2:
+            sentiment_score = total_score
+            if total_score >= 3:
                 sentiment = "positive"
-            elif sentiment_score <= -2:
+            elif total_score <= -3:
                 sentiment = "negative"
         
-        # Logique de recommandation intelligente
-        if is_suspicious:
-            # Token suspect ou inconnu -> recommandation très prudente
-            action = "hold"
-            confidence = 0.15  # Confiance très faible
-            reasoning = f"⚠️ WARNING: {token_symbol} appears to be an unknown, suspicious, or potentially risky token. " \
-                       f"Domain-like names or meme-token patterns detected. Recommend extreme caution and thorough research " \
-                       f"before any trading activity. Consider established cryptocurrencies instead."
-            price_target = None
-            stop_loss = None
+        # Logique de fallback selon le type de token
+        if any(token_lower == t or token_lower in t for t in major_tokens):
+            # Token majeur - recommandation optimiste avec Claude timeout
+            action = "buy" if sentiment_score >= 0 else "hold"
+            confidence = 0.60
+            reasoning = f"{token_symbol} is a well-established cryptocurrency. Claude analysis timeout, " \
+                       f"but fundamental strength suggests opportunity. Conservative approach recommended. " \
+                       f"Sentiment: {sentiment} (score: {sentiment_score})"
+            price_target = 100 * 1.05 if action == "buy" else None
+            stop_loss = 100 * 0.90
             
-        elif any(token in token_lower for token in major_tokens):
-            # Token majeur -> recommandation basée sur le sentiment
-            if sentiment == "positive":
-                action = "buy"
-                confidence = 0.78
-                reasoning = f"{token_symbol} is a well-established cryptocurrency with strong fundamentals. " \
-                           f"Current market sentiment appears positive based on recent news analysis. " \
-                           f"Consider dollar-cost averaging with proper risk management."
-                price_target = 100 * 1.12  # Prix symbolique
-                stop_loss = 100 * 0.88
-            elif sentiment == "negative":
-                action = "sell"
-                confidence = 0.72
-                reasoning = f"{token_symbol} showing negative sentiment in recent market analysis. " \
-                           f"Consider taking profits or reducing exposure until sentiment improves. " \
-                           f"Monitor support levels closely."
-                price_target = 100 * 0.92
-                stop_loss = 100 * 1.05
-            else:
-                action = "hold"
-                confidence = 0.68
-                reasoning = f"{token_symbol} is a solid, established cryptocurrency with neutral market sentiment. " \
-                           f"Current conditions suggest waiting for clearer directional signals before major position changes."
-                price_target = None
-                stop_loss = 100 * 0.90
-                
-        elif any(token in token_lower for token in l2_tokens):
-            # Token Layer 2 -> recommandation modérée
-            if sentiment == "positive":
-                action = "buy"
-                confidence = 0.68
-                reasoning = f"{token_symbol} is part of the Layer 2/scaling ecosystem. " \
-                           f"Positive sentiment suggests growth potential as Ethereum scaling gains adoption. " \
-                           f"Monitor ecosystem developments and network metrics."
-            else:
-                action = "hold"  
-                confidence = 0.58
-                reasoning = f"{token_symbol} represents Layer 2 infrastructure. " \
-                           f"Neutral/negative sentiment suggests cautious approach. " \
-                           f"Wait for clearer scaling adoption signals."
+        elif any(token_lower == t or token_lower in t for t in l2_tokens + defi_tokens):
+            # Token DeFi/L2 établi
+            action = "hold"
+            confidence = 0.55
+            reasoning = f"{token_symbol} is part of established DeFi/L2 ecosystem. " \
+                       f"Claude timeout prevented detailed analysis. Conservative hold recommended " \
+                       f"until system recovery. Sentiment: {sentiment}"
             price_target = None
-            stop_loss = None
+            stop_loss = 100 * 0.87
             
         else:
-            # Token inconnu mais pas suspect -> prudence modérée
+            # Token inconnu - très conservateur
             action = "hold"
-            confidence = 0.25
-            reasoning = f"{token_symbol} is not widely recognized in major cryptocurrency rankings. " \
-                       f"Without sufficient market data, trading history, and news coverage, " \
-                       f"recommend conducting thorough research before any trading decisions. " \
-                       f"Consider market cap, volume, and project fundamentals."
+            confidence = 0.35
+            reasoning = f"{token_symbol} is not widely recognized. Claude timeout prevented " \
+                       f"comprehensive analysis. Recommend thorough research before trading decisions. " \
+                       f"Avoid major positions until verified analysis available."
             price_target = None
-            stop_loss = None
+            stop_loss = 100 * 0.85
         
-        # Recommandation de fallback intelligente
+        # Créer recommandation de fallback intelligente
         fallback_rec = TradingRecommendation(
             token_symbol=token_symbol,
             recommendation=action,
@@ -1106,8 +1206,39 @@ async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str, 
         }
         
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors de l'envoi à Simon: {e}")
-        return None
+        # Gestion d'erreur améliorée avec fallback de sécurité
+        ctx.logger.error(f"❌ Erreur critique lors de l'analyse de {token_symbol}: {e}")
+        
+        # Créer une recommandation de sécurité ultra-conservative
+        emergency_rec = TradingRecommendation(
+            token_symbol=token_symbol,
+            recommendation="hold",
+            confidence=0.05,
+            reasoning=f"⚠️ ERREUR SYSTÈME: Analyse impossible due à une erreur technique: {str(e)}. " \
+                     f"Recommandation de sécurité ultra-conservative. Ne pas trader jusqu'à résolution " \
+                     f"du problème technique. Vérifier la connectivité et l'état du système.",
+            price_target=None,
+            stop_loss=100 * 0.75,  # Stop loss de sécurité
+            news_sentiment="neutral",
+            timestamp=datetime.now().isoformat()
+        )
+        
+        try:
+            # Essayer d'envoyer la recommandation d'urgence
+            await ctx.send(SIMON_AGENT_ADDRESS, emergency_rec)
+            ctx.logger.info(f"🚨 Recommandation d'urgence envoyée pour {token_symbol}")
+        except Exception as send_error:
+            ctx.logger.error(f"❌ Impossible d'envoyer la recommandation d'urgence: {send_error}")
+        
+        return {
+            "recommendation": "hold",
+            "confidence": 0.05,
+            "reasoning": f"Erreur système: {str(e)}. Analyse impossible.",
+            "price_target": None,
+            "stop_loss": 100 * 0.75,
+            "news_sentiment": "neutral",
+            "error": str(e)
+        }
 
 
 async def get_recent_news_context(ctx: Context):
