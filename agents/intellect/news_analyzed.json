@@ -1,20 +1,26 @@
 {
-  "timestamp": "2025-07-05T23:33:17.089060",
+  "timestamp": "2025-07-06T08:29:00.137681",
   "total_articles": 2,
+  "analyzed_articles": 2,
+  "source_file": "news_logs.json",
   "articles": [
     {
       "title": "Brazil’s central bank service provider hacked, $140M stolen",
       "description": "The theft occurred after the hackers allegedly compromised an employee of C&M, a software service provider, by buying the employee’s login credentials.",
       "source": "Cointelegraph",
       "url": "https://cointelegraph.com/news/brazil-central-bank-service-provider-hacked-140-million",
-      "timestamp": "2025-07-04T21:32:06Z"
+      "timestamp": "2025-07-04T21:32:06Z",
+      "review": "Analyse automatique (Claude IA indisponible): Actualité négative identifiée (2 indicateurs bearish). Prudence recommandée pour les investissements crypto.",
+      "rate": "bearish"
     },
     {
       "title": "Bitcoin Dives on OG Whale FUD, But Charts Remain Bullish: Analysis",
       "description": "A dormant Bitcoin whale woke up and chose violence—by spooking skittish BTC traders with an $8 billion move. The charts though? They tell a different story.",
       "source": "Decrypt",
       "url": "https://decrypt.co/328731/bitcoin-price-dives-og-whale-fud-charts-bullish-analysis",
-      "timestamp": "2025-07-04T21:31:02Z"
+      "timestamp": "2025-07-04T21:31:02Z",
+      "review": "Analyse automatique (Claude IA indisponible): Actualité positive identifiée (2 indicateurs bullish). Potentiel d'impact positif sur le marché crypto.",
+      "rate": "bullish"
     }
   ]
 }

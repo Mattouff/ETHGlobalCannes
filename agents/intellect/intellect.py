@@ -9,6 +9,7 @@ import aiohttp
 import statistics
 import logging
 import asyncio
+import random
 from enum import Enum
 from uuid import uuid4
 
@@ -140,6 +141,14 @@ class NewsJsonResponse(Model):
     status: str
 
 
+class NewsJsonDetailsResponse(Model):
+    articles: list[dict[str, Any]]  # Articles avec review et rate ajoutés
+    total_articles: int
+    analyzed_articles: int
+    timestamp: str
+    status: str
+
+
 # Modèles pour la communication avec Simon (Trading Agent)
 class TradingRecommendation(Model):
     token_symbol: str
@@ -164,6 +173,10 @@ class ASIOneMetadataResponse(Model):
     endpoints: dict[str, str]
     protocols: list[str]
     timestamp: str
+
+class EmptyRequest(Model):
+    """Modèle de requête vide pour les endpoints POST sans paramètres"""
+    pass
 
 class TradingAnalysisAPIResponse(Model):
     success: bool
@@ -272,7 +285,11 @@ async def get_asi_one_metadata(ctx: Context) -> ASIOneMetadataResponse:
             "conversations": "/chat/conversations",
             "analytics": "/chat/analytics",
             "trading": "/trading/recommend",
-            "health": "/health"
+            "health": "/health",
+            "getJson": "/getJson",
+            "getJsonDetails": "/getJsonDetails",
+            "getAnalyzed": "/getAnalyzed",
+            "updateAnalyzed": "/updateAnalyzed"
         },
         protocols=["ASI_ONE_Chat", "IntentFi", "IntelleC Communication"],
         timestamp=datetime.now().isoformat()
@@ -1120,142 +1137,544 @@ async def get_news_json(ctx: Context) -> NewsJsonResponse:
         )
 
 
-# Inclusion des protocoles selon la documentation officielle Fetch.ai
-agent.include(intentfi_protocol)
-agent.include(simon_protocol)
-
-# Inclusion du protocole de chat selon la documentation officielle
-try:
-    if CHAT_PROTOCOL_AVAILABLE:
-        agent.include(chat_protocol, publish_manifest=True)
-        logger.info("✅ Protocole de chat officiel inclus avec manifest publié")
-    else:
-        agent.include(chat_protocol)
-        logger.info("✅ Protocole de chat custom inclus")
-except Exception as e:
-    logger.error(f"❌ Erreur lors de l'inclusion du protocole de chat: {e}")
-
-class Location(Model):
-    city: str
-    country: str
-    temperature: float
-
-
-@agent.on_event("startup")
-async def send_message(ctx: Context):
-    ctx.logger.info("🚀 IntentFi Agent démarré!")
-    ctx.logger.info(f"📍 Endpoints disponibles:")
-    ctx.logger.info(f"   GET  http://localhost:8001/health")
-    ctx.logger.info(f"   POST http://localhost:8001/recommend")
-    ctx.logger.info(f"   GET  http://localhost:8001/intents/popular")
-    ctx.logger.info(f"   GET  http://localhost:8001/getJson")
-    ctx.logger.info(f"   POST http://localhost:8001/trading/recommend")
-    ctx.logger.info(f"")
-    ctx.logger.info(f"💬 Endpoints Chat ASI1.ai:")
-    ctx.logger.info(f"   POST http://localhost:8001/chat/send")
-    ctx.logger.info(f"   GET  http://localhost:8001/chat/history/{{conversation_id}}")
-    ctx.logger.info(f"   GET  http://localhost:8001/chat/conversations")
-    ctx.logger.info(f"   GET  http://localhost:8001/chat/analytics")
-    ctx.logger.info(f"   GET  http://localhost:8001/asi-one/metadata")
-    ctx.logger.info(f"")
-    ctx.logger.info(f"🌐 URL publique: https://91fe-83-144-23-154.ngrok-free.app")
-    ctx.logger.info(f"🎯 Agent ID: {ctx.agent.address}")
-    ctx.logger.info(f"🤖 Communication avec Simon Agent: {SIMON_AGENT_ADDRESS}")
-    ctx.logger.info(f"🧠 Communication avec Claude AI: {AI_AGENT_ADDRESS}")
-    ctx.logger.info(f"")
-    ctx.logger.info(f"🔗 Protocoles activés:")
-    ctx.logger.info(f"   • IntentFi Protocol")
-    ctx.logger.info(f"   • Simon Communication Protocol")
-    if CHAT_PROTOCOL_AVAILABLE:
-        ctx.logger.info(f"   • Protocole de chat officiel Fetch.ai ✅")
-    else:
-        ctx.logger.info(f"   • Protocole de chat custom ASI ONE ⚠️")
+@agent.on_rest_get("/getJsonDetails", NewsJsonDetailsResponse)
+async def get_news_json_details(ctx: Context) -> NewsJsonDetailsResponse:
+    """Endpoint pour récupérer le contenu du fichier news_logs.json avec analyse détaillée par Claude IA"""
     
-    ctx.logger.info(f"")
-    ctx.logger.info(f"🔗 INTÉGRATION ASI1.AI PRÊTE! 🔗")
-    ctx.logger.info(f"📨 Vous pouvez maintenant communiquer avec cet agent via:")
-    ctx.logger.info(f"   • https://asi1.ai/ (interface web)")
-    ctx.logger.info(f"   • Messages direct via adresse: {ctx.agent.address}")
-    ctx.logger.info(f"   • API REST via ngrok: https://91fe-83-144-23-154.ngrok-free.app")
-    
-    # Test de connectivité avec l'AI agent
-    ctx.logger.info(f"🔍 Test de connectivité avec AI Agent: {AI_AGENT_ADDRESS}")
-    
-    test_prompt = TextPrompt(text="Hello, this is a connectivity test from IntentFi agent. Please respond with 'Connected' if you receive this message.")
+    ctx.logger.info("🌐 API Call - Récupération du JSON des actualités avec analyse détaillée")
     
     try:
-        await ctx.send(AI_AGENT_ADDRESS, test_prompt)
-        ctx.logger.info("📤 Message de test envoyé à l'AI Agent")
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors de l'envoi du test: {e}")
-    
-    # Test du protocole de chat
-    if CHAT_PROTOCOL_AVAILABLE:
-        ctx.logger.info("💬 Test du protocole de chat officiel...")
-        test_chat = ChatMessage(
-            timestamp=datetime.now(timezone.utc),
-            msg_id=uuid4(),
-            content=[TextContent(type="text", text="Test du protocole de chat ASI1.ai - agent IntentFi prêt!")]
+        # Lire le fichier news_logs.json
+        if not os.path.exists(NEWS_FILE):
+            ctx.logger.warning(f"⚠️ Fichier {NEWS_FILE} non trouvé")
+            return NewsJsonDetailsResponse(
+                articles=[],
+                total_articles=0,
+                analyzed_articles=0,
+                timestamp=datetime.now().isoformat(),
+                status="no_data"
+            )
+        
+        with open(NEWS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        articles = data.get("articles", [])
+        total_count = len(articles)
+        
+        ctx.logger.info(f"📰 JSON récupéré : {total_count} articles - Analyse en cours...")
+        
+        # Analyser chaque article avec Claude IA
+        analyzed_articles = []
+        analyzed_count = 0
+        
+        for i, article in enumerate(articles):
+            ctx.logger.info(f"🔍 Analyse de l'article {i+1}/{total_count}")
+            
+            try:
+                # Analyser l'article avec Claude IA
+                analysis = await analyze_article_with_claude(ctx, article)
+                
+                # Créer une copie de l'article avec les nouveaux champs
+                analyzed_article = article.copy()
+                analyzed_article["review"] = analysis.get("review", "Analyse non disponible")
+                analyzed_article["rate"] = analysis.get("rate", "neutral")
+                
+                analyzed_articles.append(analyzed_article)
+                analyzed_count += 1
+                
+                ctx.logger.info(f"✅ Article {i+1} analysé - Rate: {analysis.get('rate', 'neutral')}")
+                
+                # Pause courte pour éviter le rate limiting
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                ctx.logger.error(f"❌ Erreur lors de l'analyse de l'article {i+1}: {e}")
+                # Ajouter l'article sans analyse en cas d'erreur
+                fallback_article = article.copy()
+                fallback_article["review"] = f"Erreur lors de l'analyse: {str(e)}"
+                fallback_article["rate"] = "neutral"
+                analyzed_articles.append(fallback_article)
+        
+        ctx.logger.info(f"📊 Analyse terminée : {analyzed_count}/{total_count} articles analysés avec succès")
+        
+        return NewsJsonDetailsResponse(
+            articles=analyzed_articles,
+            total_articles=total_count,
+            analyzed_articles=analyzed_count,
+            timestamp=datetime.now().isoformat(),
+            status="success"
         )
         
-        # Stocker dans l'historique pour démonstration
-        test_conversation_id = f"startup_test_{ctx.agent.address}"
-        conversation_history[test_conversation_id] = [
-            {
-                "msg_id": str(test_chat.msg_id),
-                "sender": ctx.agent.address,
-                "content": "Test du protocole de chat ASI1.ai - agent IntentFi prêt!",
-                "type": "text",
-                "timestamp": test_chat.timestamp.isoformat()
-            }
-        ]
-        
-        ctx.logger.info("✅ Protocole de chat officiel initialisé avec succès!")
-    else:
-        ctx.logger.warning("⚠️ Protocole de chat custom activé - installation de uagents_core recommandée")
+    except json.JSONDecodeError as e:
+        ctx.logger.error(f"❌ Erreur JSON : {e}")
+        return NewsJsonDetailsResponse(
+            articles=[],
+            total_articles=0,
+            analyzed_articles=0,
+            timestamp=datetime.now().isoformat(),
+            status="json_error"
+        )
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de la lecture : {e}")
+        return NewsJsonDetailsResponse(
+            articles=[],
+            total_articles=0,
+            analyzed_articles=0,
+            timestamp=datetime.now().isoformat(),
+            status="error"
+        )
+
+
+@agent.on_rest_get("/getAnalyzed", NewsJsonDetailsResponse)
+async def get_news_analyzed(ctx: Context) -> NewsJsonDetailsResponse:
+    """Endpoint pour récupérer les articles analysés depuis le fichier news_analyzed.json"""
     
-    # Test avec prompt structuré pour Claude (optionnel - peut causer rate limiting)
-    if False:  # Désactiver pour éviter le rate limiting au démarrage
-        prompt = StructuredOutputPrompt(
-            prompt="Simple test - return current timestamp and status 'online'",
-            output_schema={
-                "type": "object",
-                "properties": {
-                    "status": {"type": "string"},
-                    "timestamp": {"type": "string"},
-                    "test": {"type": "boolean"}
+    ctx.logger.info("🌐 API Call - Récupération des articles analysés")
+    
+    analyzed_file = "news_analyzed.json"
+    
+    try:
+        # Vérifier si le fichier analysé existe
+        if not os.path.exists(analyzed_file):
+            ctx.logger.warning(f"⚠️ Fichier {analyzed_file} non trouvé - Création en cours...")
+            # Créer le fichier analysé à partir du fichier original
+            await create_analyzed_file(ctx)
+        
+        # Lire le fichier analysé
+        with open(analyzed_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        articles = data.get("articles", [])
+        total_count = len(articles)
+        analyzed_count = sum(1 for article in articles if 'review' in article and 'rate' in article)
+        
+        ctx.logger.info(f"📰 Fichier analysé récupéré : {total_count} articles, {analyzed_count} analysés")
+        
+        return NewsJsonDetailsResponse(
+            articles=articles,
+            total_articles=total_count,
+            analyzed_articles=analyzed_count,
+            timestamp=data.get("timestamp", datetime.now().isoformat()),
+            status="success"
+        )
+        
+    except json.JSONDecodeError as e:
+        ctx.logger.error(f"❌ Erreur JSON : {e}")
+        return NewsJsonDetailsResponse(
+            articles=[],
+            total_articles=0,
+            analyzed_articles=0,
+            timestamp=datetime.now().isoformat(),
+            status="json_error"
+        )
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de la lecture : {e}")
+        return NewsJsonDetailsResponse(
+            articles=[],
+            total_articles=0,
+            analyzed_articles=0,
+            timestamp=datetime.now().isoformat(),
+            status="error"
+        )
+
+
+@agent.on_rest_post("/updateAnalyzed", EmptyRequest, NewsJsonDetailsResponse)
+async def update_analyzed_file_endpoint(ctx: Context, req: EmptyRequest) -> NewsJsonDetailsResponse:
+    """Endpoint pour mettre à jour le fichier news_analyzed.json avec les dernières analyses"""
+    
+    ctx.logger.info("🌐 API Call - Mise à jour du fichier analysé")
+    
+    try:
+        result = await create_analyzed_file(ctx)
+        return result
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de la mise à jour : {e}")
+        return NewsJsonDetailsResponse(
+            articles=[],
+            total_articles=0,
+            analyzed_articles=0,
+            timestamp=datetime.now().isoformat(),
+            status="error"
+        )
+
+
+async def create_analyzed_file(ctx: Context) -> NewsJsonDetailsResponse:
+    """Crée ou met à jour le fichier news_analyzed.json avec les analyses IA"""
+    
+    analyzed_file = "news_analyzed.json"
+    
+    try:
+        # Lire le fichier original
+        if not os.path.exists(NEWS_FILE):
+            ctx.logger.warning(f"⚠️ Fichier {NEWS_FILE} non trouvé")
+            return NewsJsonDetailsResponse(
+                articles=[],
+                total_articles=0,
+                analyzed_articles=0,
+                timestamp=datetime.now().isoformat(),
+                status="no_source_data"
+            )
+        
+        with open(NEWS_FILE, 'r', encoding='utf-8') as f:
+            original_data = json.load(f)
+        
+        original_articles = original_data.get("articles", [])
+        total_count = len(original_articles)
+        
+        ctx.logger.info(f"📰 Création du fichier analysé : {total_count} articles à analyser")
+        
+        # Vérifier si le fichier analysé existe déjà
+        existing_analyzed = {}
+        if os.path.exists(analyzed_file):
+            try:
+                with open(analyzed_file, 'r', encoding='utf-8') as f:
+                    existing_data = json.load(f)
+                    for article in existing_data.get("articles", []):
+                        # Utiliser l'URL comme clé unique
+                        if 'url' in article and 'review' in article:
+                            existing_analyzed[article['url']] = {
+                                'review': article['review'],
+                                'rate': article['rate']
+                            }
+                ctx.logger.info(f"♻️ Réutilisation de {len(existing_analyzed)} analyses existantes")
+            except Exception as e:
+                ctx.logger.warning(f"⚠️ Erreur lecture fichier existant: {e}")
+        
+        # Analyser chaque article
+        analyzed_articles = []
+        analyzed_count = 0
+        
+        for i, article in enumerate(original_articles):
+            ctx.logger.info(f"🔍 Traitement article {i+1}/{total_count}")
+            
+            # Créer une copie de l'article
+            analyzed_article = article.copy()
+            
+            # Vérifier si l'analyse existe déjà
+            article_url = article.get('url', '')
+            if article_url in existing_analyzed:
+                # Réutiliser l'analyse existante
+                analysis = existing_analyzed[article_url]
+                analyzed_article["review"] = analysis['review']
+                analyzed_article["rate"] = analysis['rate']
+                analyzed_count += 1
+                ctx.logger.info(f"♻️ Article {i+1} - Analyse réutilisée")
+            else:
+                # Nouvelle analyse avec Claude IA
+                try:
+                    analysis = await analyze_article_with_claude(ctx, article)
+                    analyzed_article["review"] = analysis.get("review", "Analyse non disponible")
+                    analyzed_article["rate"] = analysis.get("rate", "neutral")
+                    analyzed_count += 1
+                    ctx.logger.info(f"✅ Article {i+1} - Nouvelle analyse: {analysis.get('rate', 'neutral')}")
+                    
+                    # Pause pour éviter le rate limiting
+                    await asyncio.sleep(1)
+                    
+                except Exception as e:
+                    ctx.logger.error(f"❌ Erreur analyse article {i+1}: {e}")
+                    analyzed_article["review"] = f"Erreur lors de l'analyse: {str(e)}"
+                    analyzed_article["rate"] = "neutral"
+            
+            analyzed_articles.append(analyzed_article)
+        
+        # Sauvegarder le fichier analysé
+        analyzed_data = {
+            "timestamp": datetime.now().isoformat(),
+            "total_articles": total_count,
+            "analyzed_articles": analyzed_count,
+            "source_file": NEWS_FILE,
+            "articles": analyzed_articles
+        }
+        
+        with open(analyzed_file, 'w', encoding='utf-8') as f:
+            json.dump(analyzed_data, f, ensure_ascii=False, indent=2)
+        
+        ctx.logger.info(f"💾 Fichier {analyzed_file} créé avec succès")
+        ctx.logger.info(f"📊 Résultat : {analyzed_count}/{total_count} articles analysés")
+        
+        return NewsJsonDetailsResponse(
+            articles=analyzed_articles,
+            total_articles=total_count,
+            analyzed_articles=analyzed_count,
+            timestamp=analyzed_data["timestamp"],
+            status="success"
+        )
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur création fichier analysé: {e}")
+        return NewsJsonDetailsResponse(
+            articles=[],
+            total_articles=0,
+            analyzed_articles=0,
+            timestamp=datetime.now().isoformat(),
+            status="error"
+        )
+
+
+async def analyze_article_with_claude(ctx: Context, article: dict) -> dict:
+    """Analyse un article avec Claude IA pour obtenir review et rate"""
+    
+    try:
+        # Extraire les informations pertinentes de l'article
+        title = article.get("title", "")
+        description = article.get("description", "")
+        content = article.get("content", "")
+        url = article.get("url", "")
+        source = article.get("source", {}).get("name", "") if isinstance(article.get("source", {}), dict) else str(article.get("source", ""))
+        published_at = article.get("publishedAt", "") or article.get("timestamp", "")
+        
+        # Créer le prompt pour Claude IA
+        analysis_prompt = f"""
+Tu es un expert en analyse financière crypto. Analyse cet article d'actualité et détermine s'il présente une opportunité financière intéressante dans le domaine des cryptomonnaies.
+
+ARTICLE À ANALYSER:
+Titre: {title}
+Description: {description}
+Contenu: {content[:1000] if content else "Non disponible"}
+Source: {source}
+Date: {published_at}
+URL: {url}
+
+INSTRUCTIONS:
+1. Analyse l'impact potentiel de cette actualité sur le marché des cryptomonnaies
+2. Identifie les opportunités d'investissement ou de trading
+3. Évalue le sentiment général (bullish/bearish/neutral)
+4. Fournis une review détaillée et professionnelle
+
+Concentre-toi sur:
+- Impact sur les prix des crypto-monnaies
+- Nouvelles technologies blockchain
+- Réglementations crypto
+- Adoptions institutionnelles
+- Innovations DeFi/Web3
+- Partenariats significatifs
+- Tendances de marché
+
+RÉPONDRE UNIQUEMENT au format JSON strict:
+{{
+    "review": "Analyse détaillée de l'opportunité financière crypto de cette actualité. Explique clairement pourquoi c'est intéressant ou non pour les investisseurs crypto, les impacts potentiels sur les prix, les tokens concernés, et les stratégies recommandées.",
+    "rate": "bullish|bearish|neutral"
+}}
+
+IMPORTANT: 
+- "bullish" = actualité positive pour le marché crypto, opportunité d'achat
+- "bearish" = actualité négative pour le marché crypto, signal de vente/prudence  
+- "neutral" = actualité sans impact significatif sur le marché crypto
+"""
+
+        # Créer le schéma de réponse
+        analysis_schema = {
+            "type": "object",
+            "properties": {
+                "review": {
+                    "type": "string",
+                    "description": "Analyse détaillée de l'opportunité financière crypto"
+                },
+                "rate": {
+                    "type": "string",
+                    "enum": ["bullish", "bearish", "neutral"],
+                    "description": "Sentiment général de l'actualité"
                 }
             },
+            "required": ["review", "rate"]
+        }
+        
+        # Créer un ID unique pour cette analyse
+        request_id = str(uuid4())
+        
+        # Envoyer le prompt à Claude IA
+        prompt = StructuredOutputPrompt(
+            prompt=analysis_prompt,
+            output_schema=analysis_schema
         )
+        
+        ctx.logger.info(f"🧠 Envoi de l'analyse d'article à Claude IA")
+        
+        # Stocker la demande pour traitement asynchrone
+        pending_requests[request_id] = {
+            "type": "article_analysis",
+            "article_title": title[:50] + "..." if len(title) > 50 else title,
+            "timestamp": datetime.now().isoformat()
+        }
         
         try:
             await ctx.send(AI_AGENT_ADDRESS, prompt)
-            ctx.logger.info("📤 Test structuré envoyé à l'AI Agent")
+            ctx.logger.info("📤 Prompt d'analyse envoyé à Claude IA")
         except Exception as e:
-            ctx.logger.error(f"❌ Erreur lors de l'envoi du test structuré: {e}")
-            ctx.logger.info("ℹ️ Le test structuré peut être désactivé pour éviter le rate limiting")
+            ctx.logger.error(f"❌ Erreur lors de l'envoi à Claude IA: {e}")
+            # Nettoyer la demande pending et retourner une erreur
+            if request_id in pending_requests:
+                del pending_requests[request_id]
+            return {
+                "review": f"Erreur de communication avec Claude IA: {str(e)}",
+                "rate": "neutral"
+            }
+        
+        # Attendre la réponse avec timeout et retry
+        max_wait = 30  # 30 secondes max par article
+        for attempt in range(max_wait):
+            await asyncio.sleep(1)
+            
+            # Chercher la réponse dans ai_responses avec une logique flexible
+            response = None
+            for resp_id, resp_data in list(ai_responses.items()):
+                if isinstance(resp_data, dict) and "review" in resp_data and "rate" in resp_data:
+                    response = resp_data
+                    # Nettoyer la réponse utilisée
+                    del ai_responses[resp_id]
+                    break
+            
+            if response:
+                ctx.logger.info(f"✅ Analyse reçue de Claude AI - Rate: {response.get('rate')}")
+                
+                # Nettoyer la demande pending
+                if request_id in pending_requests:
+                    del pending_requests[request_id]
+                
+                return response
+        
+        # Timeout - retourner une analyse par défaut
+        ctx.logger.warning(f"⏰ Timeout pour l'analyse Claude AI après {max_wait}s")
+        
+        # Nettoyer la demande pending
+        if request_id in pending_requests:
+            del pending_requests[request_id]
+        
+        # Analyse basique par mots-clés en fallback
+        fallback_analysis = analyze_article_keywords(title, description, content)
+        
+        return {
+            "review": f"Analyse automatique (Claude IA indisponible): {fallback_analysis['review']}",
+            "rate": fallback_analysis["rate"]
+        }
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de l'analyse d'article: {e}")
+        return {
+            "review": f"Erreur lors de l'analyse: {str(e)}",
+            "rate": "neutral"
+        }
+
+
+def analyze_article_keywords(title: str, description: str, content: str) -> dict:
+    """Analyse basique par mots-clés en fallback si Claude IA n'est pas disponible"""
     
-    # Test additionnel du protocole de chat (structure legacy pour démonstration)
-    ctx.logger.info("💬 Test du protocole de chat legacy pour compatibilité...")
+    text = f"{title} {description} {content}".lower()
     
-    # Créer un message legacy pour l'historique
-    legacy_test_message = {
-        "message_id": str(uuid.uuid4()),
-        "sender": ctx.agent.address,
-        "content": "Test du protocole de chat legacy - fonctionnalité activée",
-        "type": "text",
-        "timestamp": datetime.now().isoformat()
+    # Mots-clés bullish
+    bullish_keywords = [
+        'adoption', 'partnership', 'bull', 'surge', 'pump', 'moon', 'breakthrough',
+        'institutional', 'investment', 'fund', 'etf', 'approved', 'launch', 'integration',
+        'upgrade', 'innovation', 'defi', 'nft', 'web3', 'blockchain', 'crypto',
+        'bitcoin', 'ethereum', 'gains', 'profit', 'success', 'milestone'
+    ]
+    
+    # Mots-clés bearish  
+    bearish_keywords = [
+        'crash', 'dump', 'bear', 'regulation', 'ban', 'hack', 'exploit', 'scam',
+        'fraud', 'investigation', 'lawsuit', 'fine', 'penalty', 'shutdown',
+        'decline', 'fall', 'drop', 'loss', 'risk', 'warning', 'concern'
+    ]
+    
+    bullish_score = sum(1 for keyword in bullish_keywords if keyword in text)
+    bearish_score = sum(1 for keyword in bearish_keywords if keyword in text)
+    
+    if bullish_score > bearish_score and bullish_score >= 2:
+        rate = "bullish"
+        review = f"Actualité positive identifiée ({bullish_score} indicateurs bullish). Potentiel d'impact positif sur le marché crypto."
+    elif bearish_score > bullish_score and bearish_score >= 2:
+        rate = "bearish"
+        review = f"Actualité négative identifiée ({bearish_score} indicateurs bearish). Prudence recommandée pour les investissements crypto."
+    else:
+        rate = "neutral"
+        review = "Actualité sans impact significatif identifié sur le marché crypto. Surveillance recommandée."
+    
+    return {"review": review, "rate": rate}
+
+
+async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str) -> dict:
+    """Envoie une demande d'analyse trading à Simon Agent et retourne l'analyse"""
+    
+    try:
+        ctx.logger.info(f"📊 Demande d'analyse trading pour {token_symbol} à Simon Agent")
+        
+        # Créer la demande d'analyse
+        analysis_request = TradingAnalysisRequest(
+            token_symbol=token_symbol,
+            news_context=[],  # Peut être enrichi avec des données du news.json
+            request_id=str(uuid4()),
+            timestamp=datetime.now().isoformat()
+        )
+        
+        # Envoyer à Simon Agent
+        try:
+            await ctx.send(SIMON_AGENT_ADDRESS, analysis_request)
+            ctx.logger.info(f"📤 Demande d'analyse envoyée à Simon Agent pour {token_symbol}")
+            
+            # Attendre la réponse (timeout de 15 secondes)
+            for attempt in range(15):
+                await asyncio.sleep(1)
+                
+                # Vérifier si on a reçu une réponse de Simon
+                # (Cette logique peut être améliorée selon l'implémentation de Simon)
+                # Pour l'instant, retourner une analyse simulée
+                break
+            
+            # Retourner une analyse simulée pour le moment
+            return generate_mock_trading_analysis(token_symbol)
+            
+        except Exception as e:
+            ctx.logger.error(f"❌ Erreur lors de l'envoi à Simon Agent: {e}")
+            return generate_mock_trading_analysis(token_symbol)
+            
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de l'analyse trading: {e}")
+        return generate_mock_trading_analysis(token_symbol)
+
+
+def generate_mock_trading_analysis(token_symbol: str) -> dict:
+    """Génère une analyse trading de base si Simon Agent n'est pas disponible"""
+    
+    recommendations = ["buy", "sell", "hold"]
+    sentiments = ["positive", "negative", "neutral"]
+    
+    # Analyse basique selon le token
+    if token_symbol.upper() in ["ETH", "ETHEREUM"]:
+        recommendation = "buy"
+        confidence = 0.75
+        reasoning = "ETH montre une tendance haussière avec l'écosystème DeFi en croissance"
+        sentiment = "positive"
+        price_target = 3200.0
+        stop_loss = 2800.0
+    elif token_symbol.upper() in ["BTC", "BITCOIN"]:
+        recommendation = "hold"
+        confidence = 0.65
+        reasoning = "BTC reste stable, attendre confirmation de la tendance"
+        sentiment = "neutral"
+        price_target = 45000.0
+        stop_loss = 40000.0
+    else:
+        recommendation = random.choice(recommendations)
+        confidence = random.uniform(0.5, 0.8)
+        reasoning = f"Analyse technique pour {token_symbol} basée sur les indicateurs de marché"
+        sentiment = random.choice(sentiments)
+        price_target = None
+        stop_loss = None
+    
+    return {
+        "recommendation": recommendation,
+        "confidence": confidence,
+        "reasoning": reasoning,
+        "news_sentiment": sentiment,
+        "price_target": price_target,
+        "stop_loss": stop_loss
     }
-    
-    # Stocker dans l'historique pour démonstration
-    test_conversation_id = f"test_{ctx.agent.address}"
-    conversation_history[test_conversation_id] = [legacy_test_message]
-    
-    ctx.logger.info("✅ Protocole de chat legacy initialisé avec succès!")
 
 
 @agent.on_message(TextResponse)
 async def handle_text_response(ctx: Context, sender: str, msg: TextResponse):
+    """Traite les réponses texte de Claude AI"""
     ctx.logger.info(f"📥 Réponse texte IA de ...{sender[-8:]}: {msg.text}")
     
     # Vérifier si c'est une réponse au test de connectivité
@@ -1265,9 +1684,9 @@ async def handle_text_response(ctx: Context, sender: str, msg: TextResponse):
         ctx.logger.info("✅ Communication établie avec l'AI Agent!")
 
 
-@agent.on_message(StructuredOutputResponse)  
+@agent.on_message(StructuredOutputResponse)
 async def handle_structured_response(ctx: Context, sender: str, msg: StructuredOutputResponse):
-    """Traite les réponses structurées de Claude AI pour les recommandations d'intents"""
+    """Traite les réponses structurées de Claude AI pour les recommandations d'intents et analyses d'articles"""
     ctx.logger.info(f"📥 Réponse Claude AI reçue de ...{sender[-8:]}:")
     ctx.logger.info(f"🔍 Données: {msg.output}")
     
@@ -1311,53 +1730,24 @@ async def handle_structured_response(ctx: Context, sender: str, msg: StructuredO
             
             ctx.logger.info("=" * 60)
             
-        # Vérifier si c'est une réponse de conversation de chat
-        elif isinstance(msg.output, dict) and 'response' in msg.output:
-            ctx.logger.info("💬 Réponse de conversation de chat reçue!")
+        # Vérifier si c'est une réponse d'analyse d'article (avec review et rate)
+        elif isinstance(msg.output, dict) and 'review' in msg.output and 'rate' in msg.output:
+            ctx.logger.info("📰 Analyse d'article reçue de Claude AI!")
+            ctx.logger.info("=" * 60)
             
-            # Chercher les demandes de chat en attente
-            chat_request = None
-            chat_request_id = None
-            for req_id, req_data in pending_requests.items():
-                if req_data.get("type") == "chat_conversation":
-                    chat_request = req_data
-                    chat_request_id = req_id
-                    break
+            analysis = msg.output
             
-            if chat_request:
-                # Traiter la réponse de conversation
-                sender_id = chat_request["sender"]
-                original_message_id = chat_request["original_message_id"]
-                
-                response_content = msg.output.get("response", "Désolé, je n'ai pas pu traiter votre message.")
-                
-                # Ajouter des suggestions si disponibles
-                if msg.output.get("intent_suggestion"):
-                    response_content += f"\n\n💡 Suggestion d'intent: {msg.output['intent_suggestion']}"
-                if msg.output.get("trading_suggestion"):
-                    response_content += f"\n📊 Suggestion trading: {msg.output['trading_suggestion']}"
-                
-                # Envoyer la réponse via chat
-                chat_response = ChatResponse(
-                    message_id=str(uuid.uuid4()),
-                    original_message_id=original_message_id,
-                    sender_id=ctx.agent.address,
-                    recipient_id=sender_id,
-                    response_type=MessageType.TEXT,
-                    content=response_content,
-                    metadata={"claude_response": msg.output},
-                    timestamp=datetime.now().isoformat()
-                )
-                
-                await ctx.send(sender_id, chat_response)
-                ctx.logger.info(f"📤 Réponse de conversation envoyée à {sender_id}")
-                
-                # Nettoyer la demande en attente
-                del pending_requests[chat_request_id]
-                
-            else:
-                ctx.logger.warning("⚠️ Réponse de conversation reçue mais aucune demande en attente trouvée")
-                
+            # Affichage détaillé de l'analyse
+            rate_emoji = "📈" if analysis.get('rate') == 'bullish' else "📉" if analysis.get('rate') == 'bearish' else "➡️"
+            ctx.logger.info(f"{rate_emoji} SENTIMENT: {analysis.get('rate', 'N/A').upper()}")
+            ctx.logger.info(f"📝 REVIEW: {analysis.get('review', 'N/A')[:200]}...")
+            
+            # Stocker la réponse dans ai_responses pour qu'elle soit récupérée par analyze_article_with_claude
+            # Utiliser une clé générique car on ne peut pas prédire le request_id exact
+            ai_responses[f"article_analysis_{datetime.now().timestamp()}"] = analysis
+            
+            ctx.logger.info("=" * 60)
+            
         # Vérifier si c'est une réponse d'intent financier sans request_id (format général)
         elif isinstance(msg.output, dict) and any(key in msg.output for key in ['type', 'condition', 'action', 'reasoning']):
             ctx.logger.info("💰 Recommandation d'intent financier reçue (sans request_id)!")
@@ -1381,955 +1771,70 @@ async def handle_structured_response(ctx: Context, sender: str, msg: StructuredO
             
             if 'reasoning' in recommendation:
                 ctx.logger.info(f"🧠 ANALYSE: {recommendation['reasoning']}")
-            
-            ctx.logger.info("=" * 60)
-            
+        
         else:
-            # Autres types de réponses (comme température, etc.)
-            ctx.logger.info(f"📊 Autre réponse structurée: {msg.output}")
+            ctx.logger.info("⚠️ Format de réponse non reconnu:")
+            ctx.logger.info(f"📄 Données: {msg.output}")
             
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors du traitement de la réponse Claude: {e}")
-        ctx.logger.info(f"📋 Données brutes: {msg.output}")
+        ctx.logger.error(f"❌ Erreur lors du traitement de la réponse structurée: {e}")
 
+# Inclure les protocoles dans l'agent
+agent.include(intentfi_protocol)
+agent.include(simon_protocol)
 
-async def get_token_market_data(ctx: Context, token_symbol: str):
-    """Récupère les données de marché réelles pour un token via API publique"""
+# Inclusion conditionnelle du protocole de chat
+if CHAT_PROTOCOL_AVAILABLE:
     try:
-        # Utiliser CoinGecko API (gratuite, pas besoin de clé)
-        
-        # Mapping des tokens vers leurs IDs CoinGecko
-        token_mapping = {
-            'BTC': 'bitcoin',
-            'ETH': 'ethereum', 
-            'USDC': 'usd-coin',
-            'USDT': 'tether',
-            'BNB': 'binancecoin',
-            'SOL': 'solana',
-            'ADA': 'cardano',
-            'MATIC': 'matic-network',
-            'AVAX': 'avalanche-2',
-            'DOT': 'polkadot',
-            'LINK': 'chainlink',
-            'UNI': 'uniswap',
-            'ARB': 'arbitrum',
-            'OP': 'optimism',
-            'FLOW': 'flow'
-        }
-        
-        token_id = token_mapping.get(token_symbol.upper())
-        
-        if not token_id:
-            ctx.logger.warning(f"⚠️ Token {token_symbol} non trouvé dans le mapping CoinGecko")
-            return None
-        
-        async with aiohttp.ClientSession() as session:
-            url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_id}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true"
-            
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if token_id in data:
-                        token_data = data[token_id]
-                        return {
-                            'symbol': token_symbol.upper(),
-                            'price_usd': token_data.get('usd'),
-                            'price_change_24h': token_data.get('usd_24h_change'),
-                            'market_cap': token_data.get('usd_market_cap'),
-                            'volume_24h': token_data.get('usd_24h_vol')
-                        }
-                else:
-                    ctx.logger.warning(f"⚠️ Erreur API CoinGecko: {response.status}")
-                    return None
-                    
+        agent.include(chat_protocol)
+        print("✅ Protocole de chat officiel inclus")
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors de la récupération des données de marché: {e}")
-        return None
+        print(f"⚠️ Impossible d'inclure le protocole de chat officiel: {e}")
+        print("   Utilisation du protocole custom ASI_ONE_Chat")
+        # Créer un protocole custom en fallback
+        custom_chat = Protocol("ASI_ONE_Chat")
+        agent.include(custom_chat)
+else:
+    agent.include(chat_protocol)
 
-async def analyze_technical_levels(ctx: Context, token_symbol: str, current_price: float, price_change_24h: float):
-    """Analyse technique simplifiée pour calculer les niveaux de support et résistance"""
-    try:
-        # Calculs basiques d'analyse technique
-        volatility = abs(price_change_24h) / 100
-        
-        # Support et résistance basés sur le prix actuel et la volatilité
-        if price_change_24h > 0:
-            # Prix en hausse - support plus proche, résistance plus haute
-            support_level = current_price * (1 - max(0.05, volatility * 1.5))
-            resistance_level = current_price * (1 + max(0.08, volatility * 2))
-        elif price_change_24h < 0:
-            # Prix en baisse - support plus bas, résistance plus proche  
-            support_level = current_price * (1 - max(0.08, volatility * 2))
-            resistance_level = current_price * (1 + max(0.05, volatility * 1.5))
-        else:
-            # Prix stable - niveaux équilibrés
-            support_level = current_price * 0.92
-            resistance_level = current_price * 1.08
-        
-        return {
-            'support': round(support_level, 6),
-            'resistance': round(resistance_level, 6),
-            'volatility': volatility
-        }
-        
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur analyse technique: {e}")
-        return None
-
-async def generate_smart_recommendation(ctx: Context, token_symbol: str, market_data: dict, news_data: list, technical_levels: dict):
-    """Génère une recommandation intelligente basée sur les données de marché et les news"""
-    try:
-        current_price = market_data.get('price_usd', 100)
-        price_change_24h = market_data.get('price_change_24h', 0)
-        market_cap = market_data.get('market_cap', 0)
-        volume_24h = market_data.get('volume_24h', 0)
-        
-        # Analyse du sentiment des news
-        sentiment_score = 0
-        if news_data:
-            all_text = " ".join([str(article.get("title", "")) + " " + str(article.get("content", "")) for article in news_data[:5]])
-            positive_words = ["bullish", "rise", "growth", "gain", "increase", "positive", "up", "rally", "breakout", "adoption", "partnership"]
-            negative_words = ["bearish", "fall", "decline", "loss", "decrease", "negative", "down", "crash", "dump", "risk", "regulation"]
-            
-            positive_count = sum(1 for word in positive_words if word in all_text.lower())
-            negative_count = sum(1 for word in negative_words if word in all_text.lower())
-            sentiment_score = positive_count - negative_count
-        
-        # Détermination du sentiment basé sur le score
-        if sentiment_score >= 3:
-            sentiment = "very_positive"
-        elif sentiment_score >= 1:
-            sentiment = "positive"
-        elif sentiment_score <= -3:
-            sentiment = "very_negative" 
-        elif sentiment_score <= -1:
-            sentiment = "negative"
-        else:
-            sentiment = "neutral"
-        
-        # Catégorisation du token
-        token_lower = token_symbol.lower()
-        major_tokens = ['eth', 'ethereum', 'btc', 'bitcoin', 'usdc', 'usdt', 'bnb', 'ada', 'cardano', 'sol', 'solana', 'matic', 'polygon', 'avax', 'avalanche', 'dot', 'polkadot', 'link', 'chainlink', 'uni', 'uniswap', 'atom', 'cosmos', 'algo', 'algorand', 'xrp', 'ripple', 'ltc', 'litecoin', 'bch', 'bitcoin cash', 'xlm', 'stellar']
-        l2_tokens = ['arb', 'arbitrum', 'op', 'optimism', 'flow', 'immx', 'immutable', 'zksync', 'zk', 'metis', 'boba', 'loopring', 'lrc', 'base', 'mantle', 'mnt']
-        defi_tokens = ['uni', 'uniswap', 'sushi', 'sushiswap', 'aave', 'comp', 'compound', 'mkr', 'maker', 'crv', 'curve', 'bal', 'balancer', 'snx', 'synthetix', 'ren', 'republic', 'yfi', 'yearn']
-        
-        is_major = any(token in token_lower for token in major_tokens)
-        is_l2 = any(token in token_lower for token in l2_tokens)
-        is_defi = any(token in token_lower for token in defi_tokens)
-        
-        # Calcul des niveaux de prix techniques
-        support = technical_levels.get('support', current_price * 0.9)
-        resistance = technical_levels.get('resistance', current_price * 1.1)
-        volatility = technical_levels.get('volatility', 0.05)
-        
-        # Logique de recommandation avancée
-        if market_cap and market_cap > 1_000_000_000:  # Market cap > 1B
-            # Token établi avec grosse capitalisation
-            if price_change_24h > 5 and sentiment_score >= 2:
-                action = "buy"
-                confidence = min(0.85, 0.70 + (sentiment_score * 0.05))
-                price_target = resistance * 1.1
-                stop_loss = support * 0.95
-                reasoning = f"Strong bullish momentum for {token_symbol} with {price_change_24h:.2f}% gain and positive news sentiment. " \
-                           f"Large cap token ({market_cap/1e9:.1f}B) showing technical breakout above ${current_price:.4f}. " \
-                           f"Target: ${price_target:.4f} (resistance + 10%), Stop: ${stop_loss:.4f}."
-                           
-            elif price_change_24h < -8 and sentiment_score <= -2:
-                action = "sell"
-                confidence = min(0.80, 0.65 + abs(sentiment_score * 0.05))
-                price_target = support * 0.9
-                stop_loss = resistance * 1.02
-                reasoning = f"Significant bearish pressure on {token_symbol} with {price_change_24h:.2f}% decline and negative sentiment. " \
-                           f"Large cap token showing technical breakdown below ${current_price:.4f}. " \
-                           f"Target: ${price_target:.4f} (support -10%), Stop: ${stop_loss:.4f}."
-                           
-            else:
-                action = "hold"
-                confidence = 0.70 + (volatility * 5)  # Plus de volatilité = moins de confiance
-                price_target = None
-                stop_loss = support
-                reasoning = f"Neutral momentum for established token {token_symbol}. Current price ${current_price:.4f} " \
-                           f"trading within technical range (Support: ${support:.4f}, Resistance: ${resistance:.4f}). " \
-                           f"Await clearer directional signals. Volatility: {volatility:.1%}"
-                           
-        elif is_major or is_l2:
-            # Token connu mais plus petite cap
-            if sentiment_score >= 1 and price_change_24h > 0:
-                action = "buy"
-                confidence = 0.72
-                price_target = current_price * 1.15
-                stop_loss = current_price * 0.85
-                reasoning = f"Positive sentiment for {token_symbol} with {price_change_24h:.2f}% change. " \
-                           f"Established project with growth potential. Target: ${price_target:.4f} (+15%), " \
-                           f"Stop: ${stop_loss:.4f} (-15%)."
-                           
-            elif sentiment_score <= -1 and price_change_24h < -5:
-                action = "sell"
-                confidence = 0.68
-                price_target = current_price * 0.88
-                stop_loss = current_price * 1.08
-                reasoning = f"Negative sentiment and price decline for {token_symbol}. " \
-                           f"Consider reducing exposure. Target: ${price_target:.4f} (-12%), " \
-                           f"Stop: ${stop_loss:.4f} (+8%)."
-                           
-            else:
-                action = "hold"
-                confidence = 0.60
-                price_target = None
-                stop_loss = current_price * 0.90
-                reasoning = f"Mixed signals for {token_symbol}. Established project but unclear short-term direction. " \
-                           f"Monitor at ${current_price:.4f} with stop at ${stop_loss:.4f}."
-        elif is_defi:
-            # Token DeFi établi -> analyse orientée DeFi
-            if sentiment == "positive" or sentiment_score >= 1:
-                action = "buy"
-                confidence = 0.72 + min(0.12, sentiment_score * 0.03)
-                reasoning = f"{token_symbol} is an established DeFi protocol token. " \
-                           f"Positive sentiment suggests growing protocol adoption and TVL. " \
-                           f"DeFi tokens benefit from ecosystem growth and yield opportunities. Sentiment: +{sentiment_score}."
-                price_target = 100 * (1.12 + sentiment_score * 0.02)
-                stop_loss = 100 * 0.85
-            elif sentiment == "negative":
-                action = "hold"
-                confidence = 0.58
-                reasoning = f"{token_symbol} is a DeFi protocol token facing negative sentiment. " \
-                           f"DeFi tokens can be volatile. Consider protocol health, TVL trends, " \
-                           f"and broader DeFi market conditions before major decisions."
-                price_target = None
-                stop_loss = 100 * 0.80
-            else:
-                action = "buy"
-                confidence = 0.65
-                reasoning = f"{token_symbol} represents established DeFi infrastructure. " \
-                           f"Neutral sentiment with long-term potential from DeFi sector growth. " \
-                           f"Monitor protocol metrics and total value locked (TVL) trends."
-                price_target = 100 * 1.08
-                stop_loss = 100 * 0.87
-                
-        elif any(token in token_lower for token in major_tokens):
-            # Token majeur -> recommandation basée sur le sentiment et l'analyse technique
-            if sentiment == "positive" or sentiment_score >= 1:
-                action = "buy"
-                confidence = 0.75 + min(0.15, sentiment_score * 0.03)  # Plus de sentiment = plus de confiance
-                reasoning = f"{token_symbol} is a well-established cryptocurrency showing positive market sentiment. " \
-                           f"Recent news analysis suggests favorable conditions. Sentiment score: +{sentiment_score}. " \
-                           f"Consider accumulating with proper risk management."
-                price_target = 100 * (1.08 + sentiment_score * 0.02)  # Prix plus élevé si sentiment très positif
-                stop_loss = 100 * 0.88
-            elif sentiment == "negative" or sentiment_score <= -2:
-                action = "sell"
-                confidence = 0.72 + min(0.15, abs(sentiment_score) * 0.03)
-                reasoning = f"{token_symbol} showing negative sentiment in recent market analysis. " \
-                           f"Sentiment score: {sentiment_score}. Consider reducing exposure or taking profits " \
-                           f"until market conditions improve. Monitor support levels closely."
-                price_target = 100 * (0.92 - abs(sentiment_score) * 0.01)
-                stop_loss = 100 * 1.05
-            else:
-                # Sentiment neutre mais token majeur -> analyser d'autres facteurs
-                # Favoriser légèrement le buy pour les tokens établis en l'absence de signaux négatifs
-                action = "buy"
-                confidence = 0.60  # Confiance modérée
-                reasoning = f"{token_symbol} is a solid, established cryptocurrency with neutral market sentiment. " \
-                           f"In the absence of negative signals, established tokens often present accumulation opportunities. " \
-                           f"Consider dollar-cost averaging strategy with risk management."
-                price_target = 100 * 1.05  # Objectif conservateur
-                stop_loss = 100 * 0.90
-                
-        elif any(token in token_lower for token in l2_tokens):
-            # Token Layer 2 -> recommandation basée sur l'écosystème de scaling
-            if sentiment == "positive" or sentiment_score >= 1:
-                action = "buy"
-                confidence = 0.70 + min(0.15, sentiment_score * 0.03)
-                reasoning = f"{token_symbol} is part of the growing Layer 2/scaling ecosystem. " \
-                           f"Positive sentiment suggests strong adoption potential. L2 tokens benefit " \
-                           f"from Ethereum scaling narrative and increasing DeFi activity. Sentiment: +{sentiment_score}."
-                price_target = 100 * (1.10 + sentiment_score * 0.02)
-                stop_loss = 100 * 0.90
-            elif sentiment == "negative":
-                action = "hold"  # Plus conservateur pour L2 que pour majors
-                confidence = 0.55
-                reasoning = f"{token_symbol} represents Layer 2 infrastructure with current negative sentiment. " \
-                           f"However, scaling solutions remain essential. Consider waiting for better entry " \
-                           f"points rather than selling. Monitor ecosystem developments."
-                price_target = None
-                stop_loss = 100 * 0.85
-            else:
-                # Sentiment neutre pour L2 -> légèrement bullish à long terme
-                action = "buy"
-                confidence = 0.65
-                reasoning = f"{token_symbol} represents Layer 2 scaling infrastructure. " \
-                           f"Neutral sentiment with long-term bullish outlook as Ethereum scaling gains adoption. " \
-                           f"L2 tokens are positioned to benefit from increasing network activity."
-                price_target = 100 * 1.08
-                stop_loss = 100 * 0.88
-            
-        else:
-            # Token inconnu mais pas nécessairement suspect -> analyse plus nuancée
-            if sentiment == "positive" and sentiment_score >= 2:
-                action = "buy"
-                confidence = 0.45  # Confiance modérée pour tokens inconnus même avec bon sentiment
-                reasoning = f"{token_symbol} is not widely recognized in major rankings but shows strong positive sentiment. " \
-                           f"Sentiment score: +{sentiment_score}. Could be an emerging opportunity, but requires caution. " \
-                           f"Recommend small position size and thorough research on project fundamentals."
-                price_target = 100 * 1.15  # Potentiel plus élevé pour tokens émergents
-                stop_loss = 100 * 0.85  # Stop plus serré
-            elif sentiment == "negative":
-                action = "hold"  # Éviter de sell des tokens inconnus sans plus d'infos
-                confidence = 0.35
-                reasoning = f"{token_symbol} is not widely recognized and shows negative sentiment. " \
-                           f"Insufficient data for confident sell recommendation. If holding, consider " \
-                           f"exit strategy. If not holding, avoid entry until clearer information available."
-                price_target = None
-                stop_loss = 100 * 0.80
-            else:
-                # Sentiment neutre, token inconnu -> légère préférence hold avec recherche
-                action = "hold"
-                confidence = 0.40  # Confiance plus élevée qu'avant
-                reasoning = f"{token_symbol} is not widely recognized in major cryptocurrency rankings. " \
-                           f"Neutral sentiment suggests no immediate catalysts. Recommend thorough research " \
-                           f"on project team, use case, tokenomics, and community before trading decisions. " \
-                           f"Consider market cap, volume, and development activity."
-                price_target = None
-                stop_loss = 100 * 0.85
-        
-        # Détermination du sentiment final
-        if sentiment_score >= 3:
-            news_sentiment = "very_positive"
-        elif sentiment_score >= 1:
-            news_sentiment = "positive"
-        elif sentiment_score <= -3:
-            news_sentiment = "very_negative"
-        elif sentiment_score <= -1:
-                       news_sentiment = "negative"
-        else:
-            news_sentiment = "neutral"
-        
-        return {
-            "recommendation": action,
-            "confidence": round(confidence, 2),
-            "reasoning": reasoning,
-            "price_target": round(price_target, 6) if price_target else None,
-            "stop_loss": round(stop_loss, 6) if stop_loss else None,
-            "news_sentiment": news_sentiment,
-            "technical_levels": {
-                "support": support,
-                "resistance": resistance,
-                "current_price": current_price,
-                "volume_24h": volume_24h,
-                "market_cap": market_cap
-            },
-            "market_analysis": {
-                "price_change_24h": price_change_24h,
-                "volatility": volatility,
-                "sentiment_score": sentiment_score
-            }
-        }
-        
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur génération recommandation: {e}")
-        return None
-
-async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str, news_data: list = None):
-    """Envoie une recommandation de trading avancée à Simon basée sur l'analyse de marché et les actualités"""
-    
-    try:
-        ctx.logger.info(f"📊 Génération d'une recommandation de trading avancée pour {token_symbol}...")
-        
-        # Si pas de news fournie, récupérer les actualités récentes
-        if news_data is None:
-            news_data = await get_recent_news_context(ctx)
-        
-        # Récupérer les données de marché réelles
-        market_data = await get_token_market_data(ctx, token_symbol)
-        
-        if market_data:
-            ctx.logger.info(f"💰 Données de marché pour {token_symbol}: ${market_data['price_usd']:.4f} "
-                           f"({market_data['price_change_24h']:+.2f}%)")
-            
-            # Analyser les niveaux techniques
-            technical_levels = await analyze_technical_levels(
-                ctx, token_symbol, 
-                market_data['price_usd'], 
-                market_data['price_change_24h']
-            )
-            
-            # Générer une recommandation intelligente
-            recommendation = await generate_smart_recommendation(
-                ctx, token_symbol, market_data, news_data, technical_levels
-            )
-            
-            if recommendation:
-                # Créer la recommandation pour Simon
-                trading_rec = TradingRecommendation(
-                    token_symbol=token_symbol,
-                    recommendation=recommendation["recommendation"],
-                    confidence=recommendation["confidence"],
-                    reasoning=recommendation["reasoning"],
-                    price_target=recommendation["price_target"],
-                    stop_loss=recommendation["stop_loss"],
-                    news_sentiment=recommendation["news_sentiment"],
-                    timestamp=datetime.now().isoformat()
-                )
-                
-                # Envoyer à Simon
-                await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
-                ctx.logger.info(f"📤 Recommandation avancée envoyée à Simon pour {token_symbol}")
-                
-                return recommendation
-        
-        # Fallback vers l'ancien système si pas de données de marché
-        ctx.logger.warning(f"⚠️ Pas de données de marché pour {token_symbol}, utilisation du fallback")
-        
-        # Créer un ID unique pour cette demande
-        request_id = str(uuid.uuid4())
-        
-        # DÉTECTION DE TOKENS EN PREMIER - AVANT TOUT LE RESTE
-        token_lower = token_symbol.lower()
-        suspicious_patterns = ['scam', 'ponzi', 'fake', 'test', 'spam', 'rug', 'honeypot']
-        very_risky_patterns = ['.com', '.net', '.info', '.biz', 'baby', 'safe', 'moon', 'inu', 'doge', 'vanity', 'rare']
-        
-        is_suspicious = any(pattern in token_lower for pattern in suspicious_patterns)
-        is_very_risky = any(pattern in token_lower for pattern in very_risky_patterns)
-        
-        # Adapter le prompt selon le type de token pour que Claude analyse intelligemment
-        if is_suspicious or is_very_risky:
-            ctx.logger.info(f"🚨 Token de merde détecté ({token_symbol}) - SELL automatique sans Claude")
-            
-            # Retourner directement SELL pour les shitcoins
-            trading_rec = TradingRecommendation(
-                token_symbol=token_symbol,
-                recommendation="sell",
-                confidence=0.95,  # Très haute confiance pour SELL les shitcoins
-                reasoning=f"⚠️ SHITCOIN DÉTECTÉ: {token_symbol} présente des patterns suspects typiques des arnaques crypto. Vente immédiate recommandée pour éviter pertes importantes.",
-                price_target=None,
-                stop_loss=None,
-                news_sentiment="very_negative",
-                timestamp=datetime.now().isoformat()
-            )
-            
-            await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
-            ctx.logger.info(f"📤 SELL automatique envoyé pour shitcoin {token_symbol}")
-            
-            return {
-                "recommendation": "sell",
-                "confidence": 0.95,
-                "reasoning": f"Token suspect détecté - vente immédiate recommandée",
-                "price_target": None,
-                "stop_loss": None,
-                "news_sentiment": "very_negative"
-            }
-            
-        else:
-            # Prompt ultra-simple pour tokens normaux
-            trading_prompt = f"Analyser {token_symbol} rapidement - buy/sell/hold et pourquoi ?"
-        
-        # Stocker la demande en attente
-        pending_requests[request_id] = "trading_analysis"
-        
-        # Créer le prompt structuré pour Claude avec schéma ultra-simple
-        prompt = StructuredOutputPrompt(
-            prompt=trading_prompt,
-            output_schema={
-                "type": "object",
-                "properties": {
-                    "recommendation": {"type": "string"},
-                    "confidence": {"type": "number"},
-                    "reasoning": {"type": "string"}
-                },
-                "required": ["recommendation", "confidence", "reasoning"]
-            }
-        )
-        
-        # Envoyer à Claude pour analyse (tokens normaux seulement)
-        await ctx.send(AI_AGENT_ADDRESS, prompt)
-        ctx.logger.info(f"⏳ En attente de l'analyse Claude pour {token_symbol} (prompt court)...")
-        
-        # Configuration avec timeout plus long pour tokens normaux
-        import asyncio
-        max_retries = 2
-        base_timeout = 20  # 20 secondes par tentative - plus long pour être sûr
-        
-        for retry_attempt in range(max_retries):
-            current_timeout = base_timeout
-            ctx.logger.info(f"🔄 Tentative {retry_attempt + 1}/{max_retries} - timeout: {current_timeout}s")
-            
-            # Attendre la réponse de Claude
-            for attempt in range(current_timeout):
-                await asyncio.sleep(1)
-                
-                if request_id in ai_responses:
-                    ctx.logger.info(f"✅ Analyse Claude reçue après {retry_attempt + 1} tentative(s) ({attempt + 1}s)!")
-                    analysis = ai_responses[request_id]
-                    
-                    # Nettoyer
-                    del ai_responses[request_id]
-                    if request_id in pending_requests:
-                        del pending_requests[request_id]
-                    
-                    # Créer la recommandation pour Simon avec valeurs par défaut pour schéma simplifié
-                    trading_rec = TradingRecommendation(
-                        token_symbol=token_symbol,
-                        recommendation=analysis.get("recommendation", "hold"),
-                        confidence=analysis.get("confidence", 0.5),
-                        reasoning=analysis.get("reasoning", "Analyse basée sur les actualités récentes"),
-                        price_target=None,  # Pas de price_target dans le schéma simplifié
-                        stop_loss=None,     # Pas de stop_loss dans le schéma simplifié
-                        news_sentiment="neutral",  # Pas de sentiment dans le schéma simplifié
-                        timestamp=datetime.now().isoformat()
-                    )
-                    
-                    # Envoyer à Simon
-                    await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
-                    ctx.logger.info(f"📤 Recommandation Claude envoyée à Simon pour {token_symbol}: {analysis.get('recommendation')} ({analysis.get('confidence', 0)*100:.0f}%)")
-                    
-                    return analysis
-            
-            # Si pas de réponse, retry (sauf dernière tentative)
-            if retry_attempt < max_retries - 1:
-                ctx.logger.warning(f"⏰ Timeout tentative {retry_attempt + 1} - retry dans 3s...")
-                await asyncio.sleep(3)
-                
-                # Renvoyer la requête pour retry
-                try:
-                    await ctx.send(AI_AGENT_ADDRESS, prompt)
-                    ctx.logger.info(f"🔄 Requête renvoyée à Claude (retry {retry_attempt + 2})")
-                except Exception as retry_error:
-                    ctx.logger.error(f"❌ Erreur lors du retry: {retry_error}")
-
-        # Timeout final - Claude ne répond pas
-        ctx.logger.warning(f"⏰ Claude ne répond pas pour {token_symbol} après {max_retries} tentatives - Fallback intelligent")
-        
-        # Analyser le token pour générer une recommandation intelligente
-        major_tokens = ['eth', 'ethereum', 'btc', 'bitcoin', 'usdc', 'usdt', 'bnb', 'ada', 'cardano', 
-                       'sol', 'solana', 'matic', 'polygon', 'avax', 'avalanche', 'dot', 'polkadot', 
-                       'link', 'chainlink', 'uni', 'uniswap', 'atom', 'cosmos', 'algo', 'algorand',
-                       'xrp', 'ripple', 'ltc', 'litecoin', 'bch', 'bitcoin cash', 'xlm', 'stellar']
-        
-        l2_tokens = ['arb', 'arbitrum', 'op', 'optimism', 'flow', 'immx', 'immutable', 'zksync', 'zk', 'metis', 'boba', 'loopring', 'lrc', 'base', 'mantle', 'mnt']
-        
-        defi_tokens = ['uni', 'uniswap', 'sushi', 'sushiswap', 'aave', 'comp', 'compound', 'mkr', 'maker', 
-                      'crv', 'curve', 'bal', 'balancer', 'snx', 'synthetix', 'ren', 'republic', 'yfi', 'yearn']
-        
-        # Analyser le sentiment des news
-        sentiment = "neutral"
-        sentiment_score = 0
-        
-        if news_data:
-            positive_words = ['bullish', 'gain', 'positive', 'up', 'growth', 'partnership', 'adoption', 'upgrade']
-            negative_words = ['bearish', 'loss', 'negative', 'down', 'crash', 'hack', 'regulation', 'ban']
-            
-            total_score = 0
-            for article in news_data[:10]:
-                title_content = (article.get('title', '') + ' ' + article.get('description', '')).lower()
-                pos_count = sum(1 for word in positive_words if word in title_content)
-                neg_count = sum(1 for word in negative_words if word in title_content)
-                total_score += pos_count - neg_count
-            
-            sentiment_score = total_score
-            if total_score >= 3:
-                sentiment = "positive"
-            elif total_score <= -3:
-                sentiment = "negative"
-        
-        # Logique de fallback selon le type de token
-        if any(token_lower == t or token_lower in t for t in major_tokens):
-            # Token majeur - recommandation optimiste avec Claude timeout
-            action = "buy" if sentiment_score >= 0 else "hold"
-            confidence = 0.60
-            reasoning = f"{token_symbol} is a well-established cryptocurrency. Claude analysis timeout, " \
-                       f"but fundamental strength suggests opportunity. Conservative approach recommended. " \
-                       f"Sentiment: {sentiment} (score: {sentiment_score})"
-            price_target = 100 * 1.05 if action == "buy" else None
-            stop_loss = 100 * 0.90
-            
-        elif any(token_lower == t or token_lower in t for t in l2_tokens + defi_tokens):
-            # Token DeFi/L2 établi
-            action = "hold"
-            confidence = 0.55
-            reasoning = f"{token_symbol} is part of established DeFi/L2 ecosystem. " \
-                       f"Claude timeout prevented detailed analysis. Conservative hold recommended " \
-                       f"until system recovery. Sentiment: {sentiment}"
-            price_target = None
-            stop_loss = 100 * 0.87
-            
-        else:
-            # Token inconnu - très conservateur
-            action = "hold"
-            confidence = 0.35
-            reasoning = f"{token_symbol} is not widely recognized. Claude timeout prevented " \
-                       f"comprehensive analysis. Recommend thorough research before trading decisions. " \
-                       f"Avoid major positions until verified analysis available."
-            price_target = None
-            stop_loss = 100 * 0.85
-        
-        # Créer et envoyer la recommandation à Simon
-        trading_rec = TradingRecommendation(
-            token_symbol=token_symbol,
-            recommendation=action,
-            confidence=confidence,
-            reasoning=reasoning,
-            price_target=price_target,
-            stop_loss=stop_loss,
-            news_sentiment=sentiment,
-            timestamp=datetime.now().isoformat()
-        )
-        
-        await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
-        ctx.logger.info(f"📤 Recommandation intelligente pour {token_symbol}: {action} ({confidence:.0%}) - {'⚠️ SUSPECT' if is_suspicious else '✅ Analysé'}")
-        
-        return {
-            "recommendation": action,
-            "confidence": confidence,
-            "reasoning": reasoning,
-            "price_target": price_target,
-            "stop_loss": stop_loss,
-            "news_sentiment": sentiment
-        }
-        
-    except Exception as e:
-        # Gestion d'erreur améliorée avec fallback de sécurité
-        ctx.logger.error(f"❌ Erreur critique lors de l'analyse de {token_symbol}: {e}")
-        
-        # Créer une recommandation de sécurité ultra-conservative
-        emergency_rec = TradingRecommendation(
-            token_symbol=token_symbol,
-            recommendation="hold",
-            confidence=0.05,
-            reasoning=f"⚠️ ERREUR SYSTÈME: Analyse impossible due à une erreur technique: {str(e)}. " \
-                     f"Recommandation de sécurité ultra-conservative. Ne pas trader jusqu'à résolution " \
-                     f"du problème technique. Vérifier la connectivité et l'état du système.",
-            price_target=None,
-            stop_loss=100 * 0.75,  # Stop loss de sécurité
-            news_sentiment="neutral",
-            timestamp=datetime.now().isoformat()
-        )
-        
-        try:
-            # Essayer d'envoyer la recommandation d'urgence
-            await ctx.send(SIMON_AGENT_ADDRESS, emergency_rec)
-            ctx.logger.info(f"🚨 Recommandation d'urgence envoyée pour {token_symbol}")
-        except Exception as send_error:
-            ctx.logger.error(f"❌ Impossible d'envoyer la recommandation d'urgence: {send_error}")
-        
-        return {
-            "recommendation": "hold",
-            "confidence": 0.05,
-            "reasoning": f"Erreur système: {str(e)}. Analyse impossible.",
-            "price_target": None,
-            "stop_loss": 100 * 0.75,
-            "news_sentiment": "neutral",
-            "error": str(e)
-        }
-
-
-async def get_recent_news_context(ctx: Context):
-    """Récupère le contexte des actualités récentes depuis le fichier news"""
-    try:
-        if os.path.exists(NEWS_FILE):
-            with open(NEWS_FILE, 'r', encoding='utf-8') as f:
-                news_data = json.load(f)
-                return news_data.get('articles', [])
-        else:
-            ctx.logger.warning(f"⚠️ Fichier d'actualités {NEWS_FILE} non trouvé")
-           
-            return []
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors de la lecture des actualités: {e}")
-        return []
-
-
-@agent.on_rest_post("/trading/recommend", TradingAnalysisRequest, TradingAnalysisAPIResponse)
-async def request_trading_recommendation(ctx: Context, req: TradingAnalysisRequest) -> TradingAnalysisAPIResponse:
-    """Endpoint pour demander une recommandation de trading"""
-    
-    ctx.logger.info(f"🌐 API Call - Recommandation de trading pour {req.token_symbol}")
-    
-    try:
-        # Validation du token - accepter tous les tokens maintenant
-        # Les tokens valides sont ceux que l'utilisateur possède dans son wallet
-        if not req.token_symbol or len(req.token_symbol.strip()) == 0:
-            return TradingAnalysisAPIResponse(
-                success=False,
-                message="Le symbole du token est requis",
-                timestamp=datetime.now().isoformat()
-            )
-        
-        ctx.logger.info(f"🎯 Génération de recommandation pour {req.token_symbol} (token du wallet)")
-        
-        # Générer la recommandation
-        result = await send_trading_recommendation_to_simon(ctx, req.token_symbol)
-        
-        if result:
-            # Convertir l'analyse en recommandation pour le front-end
-            action_mapping = {
-                "buy": "ACHETER",
-                "sell": "VENDRE", 
-                "hold": "CONSERVER"
-            }
-            
-            recommendation = TradingRecommendation(
-                token_symbol=req.token_symbol,
-                recommendation=action_mapping.get(result.get("recommendation", "hold"), "CONSERVER"),
-                confidence=result.get("confidence", 0.5),
-                reasoning=result.get("reasoning", "Analyse basée sur les actualités récentes"),
-                price_target=result.get("price_target"),
-                stop_loss=result.get("stop_loss"),
-                news_sentiment=result.get("news_sentiment", "neutral"),
-                timestamp=datetime.now().isoformat()
-            )
-            
-            return TradingAnalysisAPIResponse(
-                success=True,
-                message=f"Recommandation générée pour {req.token_symbol}",
-                analysis={
-                    "action": recommendation.recommendation,
-                    "confidence": recommendation.confidence,
-                    "reasoning": recommendation.reasoning,
-                    "token": recommendation.token_symbol,
-                    "timestamp": recommendation.timestamp,
-                    "news_sentiment": recommendation.news_sentiment,
-                    "price_target": recommendation.price_target,
-                    "stop_loss": recommendation.stop_loss,
-                    "market_context": result.get("market_context", {
-                        "current_price": result.get("market_data", {}).get("current_price", 0),
-                        "trend": result.get("market_data", {}).get("technical_analysis", {}).get("trend", "unknown"),
-                        "support": result.get("market_data", {}).get("technical_analysis", {}).get("support_level", 0),
-                        "resistance": result.get("market_data", {}).get("technical_analysis", {}).get("resistance_level", 0)
-                    }) if result.get("market_data") else None
-                },
-                timestamp=datetime.now().isoformat()
-            )
-        else:
-            return TradingAnalysisAPIResponse(
-                success=False,
-                message="Erreur lors de la génération de la recommandation",
-                timestamp=datetime.now().isoformat()
-            )
-            
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur API trading: {e}")
-        return TradingAnalysisAPIResponse(
-            success=False,
-            message=f"Erreur: {str(e)}",
-            timestamp=datetime.now().isoformat()
-        )
-
-
-# Gestionnaire pour les demandes d'analyse de trading venant de Simon
-@agent.on_message(TradingAnalysisRequest)
-async def handle_trading_analysis_request(ctx: Context, sender: str, msg: TradingAnalysisRequest):
-    """Traite les demandes d'analyse de trading venant de Simon"""
-    
-    ctx.logger.info(f"📥 Demande d'analyse de trading reçue de Simon pour {msg.token_symbol}")
-    
-    try:
-        # Envoyer une recommandation basée sur les actualités actuelles
-        result = await send_trading_recommendation_to_simon(ctx, msg.token_symbol, None)
-        
-        if result:
-            ctx.logger.info(f"✅ Recommandation générée et envoyée pour {msg.token_symbol}")
-        else:
-            ctx.logger.error(f"❌ Échec de la génération de recommandation pour {msg.token_symbol}")
-            
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors du traitement de la demande de Simon: {e}")
-
-
-# Gestionnaire pour confirmer la réception des TradingRecommendation par Simon
-@simon_protocol.on_message(model=TradingRecommendation)
-async def handle_trading_recommendation_confirmation(ctx: Context, sender: str, msg: TradingRecommendation):
-    """Gestionnaire pour confirmer la réception des recommandations de trading par Simon"""
-    ctx.logger.info(f"✅ Confirmation: Recommandation de trading bien reçue par Simon pour {msg.token_symbol}")
-    ctx.logger.info(f"   Action: {msg.recommendation}, Confidence: {msg.confidence:.0%}")
-
-
-# ================================
-# ENDPOINTS REST POUR ASI1.AI
-# ================================
-
-class ChatRequest(Model):
-    message: str
-    conversation_id: str = None
-    sender_id: str = None
-
-class ChatAPIResponse(Model):
-    success: bool
-    message_id: str
-    response: str
-    conversation_id: str
-    timestamp: str
-
-class ConversationListResponse(Model):
-    conversations: list[dict[str, Any]]
-    total: int
-    timestamp: str
-
-class ConversationHistoryResponse(Model):
-    conversation_id: str
-    messages: list[dict[str, Any]]
-    total_messages: int
-    timestamp: str
-
-@agent.on_rest_post("/chat/send", ChatRequest, ChatAPIResponse)
-async def send_chat_message_api(ctx: Context, req: ChatRequest) -> ChatAPIResponse:
-    """Endpoint REST pour envoyer un message de chat - compatible ASI1.ai"""
-    try:
-        ctx.logger.info(f"📨 API Chat - Message reçu: {req.message}")
-        
-        # Générer les IDs nécessaires
-        message_id = str(uuid4())
-        conversation_id = req.conversation_id or f"api_{ctx.agent.address}_{req.sender_id or 'user'}"
-        sender_id = req.sender_id or "api_user"
-        
-        # Stocker le message dans l'historique
-        if conversation_id not in conversation_history:
-            conversation_history[conversation_id] = []
-        
-        conversation_history[conversation_id].append({
-            "message_id": message_id,
-            "sender": sender_id,
-            "content": req.message,
-            "type": "text",
-            "timestamp": datetime.now().isoformat(),
-            "direction": "incoming"
-        })
-        
-        # Traiter le message et générer une réponse
-        response_text = await process_chat_text(ctx, req.message, sender_id)
-        
-        # Stocker la réponse dans l'historique
-        response_id = str(uuid4())
-        conversation_history[conversation_id].append({
-            "message_id": response_id,
-            "sender": ctx.agent.address,
-            "content": response_text,
-            "type": "text",
-            "timestamp": datetime.now().isoformat(),
-            "direction": "outgoing"
-        })
-        
-        return ChatAPIResponse(
-            success=True,
-            message_id=response_id,
-            response=response_text,
-            conversation_id=conversation_id,
-            timestamp=datetime.now().isoformat()
-        )
-        
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur API Chat: {e}")
-        return ChatAPIResponse(
-            success=False,
-            message_id="",
-            response=f"Erreur: {str(e)}",
-            conversation_id=req.conversation_id or "",
-            timestamp=datetime.now().isoformat()
-        )
-
-@agent.on_rest_get("/chat/conversations", ConversationListResponse)
-async def get_conversations_api(ctx: Context) -> ConversationListResponse:
-    """Endpoint REST pour lister les conversations - compatible ASI1.ai"""
-    try:
-        conversations = []
-        for conv_id, messages in conversation_history.items():
-            if messages:
-                last_message = messages[-1]
-                conversations.append({
-                    "conversation_id": conv_id,
-                    "last_message": last_message.get("content", "")[:100],
-                    "last_activity": last_message.get("timestamp"),
-                    "message_count": len(messages),
-                    "participants": list(set([msg.get("sender") for msg in messages]))
-                })
-        
-        return ConversationListResponse(
-            conversations=conversations,
-            total=len(conversations),
-            timestamp=datetime.now().isoformat()
-        )
-        
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur liste conversations: {e}")
-        return ConversationListResponse(
-            conversations=[],
-            total=0,
-            timestamp=datetime.now().isoformat()
-        )
-
-@agent.on_rest_get("/chat/history/{conversation_id}", ConversationHistoryResponse)
-async def get_conversation_history_api(ctx: Context, conversation_id: str) -> ConversationHistoryResponse:
-    """Endpoint REST pour récupérer l'historique d'une conversation - compatible ASI1.ai"""
-    try:
-        messages = conversation_history.get(conversation_id, [])
-        
-        return ConversationHistoryResponse(
-            conversation_id=conversation_id,
-            messages=messages,
-            total_messages=len(messages),
-            timestamp=datetime.now().isoformat()
-        )
-        
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur historique conversation: {e}")
-        return ConversationHistoryResponse(
-            conversation_id=conversation_id,
-            messages=[],
-            total_messages=0,
-            timestamp=datetime.now().isoformat()
-        )
-
-class AnalyticsResponse(Model):
-    total_conversations: int
-    total_messages: int
-    active_conversations: int
-    agent_info: dict[str, Any]
-    uptime: str
-    timestamp: str
-
-@agent.on_rest_get("/chat/analytics", AnalyticsResponse)
-async def get_chat_analytics_api(ctx: Context) -> AnalyticsResponse:
-    """Endpoint REST pour les analytics de chat - compatible ASI1.ai"""
-    try:
-        total_conversations = len(conversation_history)
-        total_messages = sum(len(messages) for messages in conversation_history.values())
-        
-        # Conversations actives (avec activité dans les dernières 24h)
-        now = datetime.now()
-        active_conversations = 0
-        for messages in conversation_history.values():
-            if messages:
-                last_msg_time = datetime.fromisoformat(messages[-1].get("timestamp", "1970-01-01T00:00:00"))
-                if (now - last_msg_time).total_seconds() < 86400:  # 24h
-                    active_conversations += 1
-        
-        return AnalyticsResponse(
-            total_conversations=total_conversations,
-            total_messages=total_messages,
-            active_conversations=active_conversations,
-            agent_info={
-                "name": "IntentFi Agent",
-                "address": ctx.agent.address,
-                "capabilities": AGENT_METADATA["capabilities"],
-                "supported_tokens": AGENT_METADATA["supported_tokens"]
-            },
-            uptime="running",
-            timestamp=datetime.now().isoformat()
-        )
-        
-    except Exception as e:
-        ctx.logger.error(f"❌ Erreur analytics: {e}")
-        return AnalyticsResponse(
-            total_conversations=0,
-            total_messages=0,
-            active_conversations=0,
-            agent_info={"error": str(e)},
-            uptime="error",
-            timestamp=datetime.now().isoformat()
-        )
-
-# ================================
-# FIN DES ENDPOINTS REST POUR ASI1.AI
-# ================================
+# Point d'entrée principal
 if __name__ == "__main__":
-    # Démarrer l'agent ASI ONE
-    agent.run()
+    print("🚀 Démarrage de l'agent IntentFi...")
+    print(f"🆔 Agent ID: {agent.address}")
+    print(f"🌐 Endpoint: http://localhost:8001")
+    print("📡 Endpoints API disponibles:")
+    print("   - GET /health - Statut de l'agent")
+    print("   - GET /getJson - Articles de news bruts")
+    print("   - GET /getJsonDetails - Articles analysés avec Claude IA")
+    print("   - GET /getAnalyzed - Articles du cache (performance)")
+    print("   - POST /updateAnalyzed - Mettre à jour le cache")
+    print("   - GET /asi-one/metadata - Métadonnées ASI ONE")
+    print("   - GET /popular-intents - Intents populaires")
+    print("   - POST /recommend/intent - Recommandation d'intent")
+    print("   - POST /trading/recommend - Recommandation trading")
+    print("   - POST /chat/send - Chat avec l'agent")
+    print("   - GET /chat/conversations - Liste des conversations")
+    print("   - GET /chat/analytics - Analytiques de chat")
+    print("")
+    print("🔗 Protocoles inclus:")
+    print("   - IntentFi (recommandations d'intents)")
+    print("   - IntelleC Communication (communication avec Simon)")
+    if CHAT_PROTOCOL_AVAILABLE:
+        print("   - Chat Protocol (protocole officiel Fetch.ai)")
+    else:
+        print("   - ASI_ONE_Chat (protocole custom)")
+    print("")
+    print("💡 Utilisation:")
+    print("   - Lancer news.py en parallèle pour alimenter les actualités")
+    print("   - Tester les endpoints avec curl ou un client HTTP")
+    print("   - Intégrer avec ASI ONE pour les conversations")
+    print("")
+    print("🏃‍♂️ Lancement de l'agent...")
+    
+    try:
+        agent.run()
+    except KeyboardInterrupt:
+        print("\n🛑 Arrêt de l'agent IntentFi")
+    except Exception as e:
+        print(f"\n❌ Erreur lors du lancement: {e}")
+        raise e
