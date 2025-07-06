@@ -379,15 +379,17 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   articleDescription: {
     fontSize: 15,
-    color: "rgba(255, 255, 255, 0.8)",
+    backgroundColor: "rgba(0, 0, 0, 0)",
     lineHeight: 22,
     marginBottom: 20,
   },
   linkContainer: {
     alignItems: "flex-start",
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   readMoreLink: {
     textDecorationLine: "none",
