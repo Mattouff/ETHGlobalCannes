@@ -487,7 +487,7 @@ export default function HomeScreen() {
               >
                 <ThemedView style={styles.chatAgentHeader}>
                   <ThemedText style={styles.chatAgentTitle}>
-                    💬 Agent Chat
+                    💬 Chat Agent
                   </ThemedText>
                   <ThemedView
                     style={[
@@ -497,10 +497,10 @@ export default function HomeScreen() {
                   />
                 </ThemedView>
                 <ThemedText style={styles.chatAgentDescription}>
-                  Chattez avec notre agent IntentFi intelligent
+                  Chat with our intelligent IntentFi Agent
                 </ThemedText>
                 <ThemedText style={styles.chatAgentLink}>
-                  🔗 Ouvrir le chat →
+                  🔗 Open a chat →
                 </ThemedText>
               </TouchableOpacity>
             </ThemedView>
@@ -902,6 +902,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 50,
     marginBottom: 8,
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   agentName: {
     marginRight: 2,
