@@ -100,7 +100,7 @@ const AGENTS_CONFIG = [
     name: "Intellect Agent",
     address:
       "agent1qf82uz69zk3dlw6k3y5aewlfaavcxed29a8w9rmxqsf20tgnwtx9xxdrf24",
-    port: 8000,
+    port: 8001,
   },
   {
     name: "Simon Agent",
@@ -418,6 +418,7 @@ export default function HomeScreen() {
             </ThemedText>
 
             <ThemedView style={styles.agentsGrid}>
+              {/* Existing Agent Cards */}
               {agentsStatus.map((agent, index) => (
                 <TouchableOpacity
                   key={index}
@@ -472,12 +473,42 @@ export default function HomeScreen() {
                   )}
                 </TouchableOpacity>
               ))}
+
+              {/* Chat Agent Card - Full Width */}
+              <TouchableOpacity
+                style={styles.chatAgentCard}
+                onPress={() => {
+                  const chatUrl =
+                    "https://agentverse.ai/agents/details/agent1qwlxt7alynn08f63r9qca9ahxee26k46w88wrr3q8v08znwmd5yq6ute7e9/profile";
+                  Linking.openURL(chatUrl).catch((err) =>
+                    console.error("Failed to open chat URL:", err)
+                  );
+                }}
+              >
+                <ThemedView style={styles.chatAgentHeader}>
+                  <ThemedText style={styles.chatAgentTitle}>
+                    💬 Chat Agent
+                  </ThemedText>
+                  <ThemedView
+                    style={[
+                      styles.statusIndicator,
+                      { backgroundColor: "#4ade80" },
+                    ]}
+                  />
+                </ThemedView>
+                <ThemedText style={styles.chatAgentDescription}>
+                  Chat with our intelligent IntentFi Agent
+                </ThemedText>
+                <ThemedText style={styles.chatAgentLink}>
+                  🔗 Open a chat →
+                </ThemedText>
+              </TouchableOpacity>
             </ThemedView>
           </ThemedView>
 
           <ThemedView style={styles.tokensSection}>
             <ThemedView style={styles.tokensSectionHeader}>
-              <ThemedText style={styles.sectionTitle}>Your Tokens</ThemedText>
+              <ThemedText style={styles.sectionTitleTokens}>Your Tokens</ThemedText>
               <TouchableOpacity
                 style={styles.filterToggle}
                 onPress={() => setHideSmallBalances(!hideSmallBalances)}
@@ -768,6 +799,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 10,
   },
+  sectionTitleTokens: {
+    fontSize: 22, // Réduit pour éviter la troncature
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "center",
+    paddingHorizontal: 10,
+  },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -811,6 +849,43 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: "rgba(0, 0, 0, 0)",
   },
+
+  // Chat Agent Card (Full Width)
+  chatAgentCard: {
+    width: "100%", // Prend toute la largeur
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)", // Bordure violette
+    backgroundColor: "rgba(139, 92, 246, 0.1)", // Fond violet clair
+  },
+  chatAgentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    backgroundColor: "rgba(0, 0, 0, 0)",
+  },
+  chatAgentTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
+    backgroundColor: "rgba(0, 0, 0, 0)",
+  },
+  chatAgentDescription: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  chatAgentLink: {
+    fontSize: 16,
+    color: "#8b5cf6", // Couleur violette
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
   agentCard: {
     width: (width - 56) / 3 - 4, // 3 cards per row with small gap
     borderRadius: 16,
@@ -827,6 +902,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 50,
     marginBottom: 8,
+    backgroundColor: "rgba(0, 0, 0, 0)",
   },
   agentName: {
     marginRight: 2,

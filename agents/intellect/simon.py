@@ -9,6 +9,26 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def save_analysis_to_file(token: str, analysis: dict):
+    """Sauvegarde l'analyse dans un fichier JSON"""
+    try:
+        filename = f"market_analysis_{token.lower()}.json"
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(analysis, f, indent=2, ensure_ascii=False)
+        logger.info(f"💾 Analyse sauvegardée dans {filename}")
+    except Exception as e:
+        logger.error(f"❌ Erreur lors de la sauvegarde de l'analyse: {e}")
+
+def save_trading_recommendation_to_file(token: str, recommendation: dict):
+    """Sauvegarde la recommandation de trading dans un fichier JSON"""
+    try:
+        filename = f"trading_recommendation_{token.lower()}.json"
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(recommendation, f, indent=2, ensure_ascii=False)
+        logger.info(f"💾 Recommandation de trading sauvegardée dans {filename}")
+    except Exception as e:
+        logger.error(f"❌ Erreur lors de la sauvegarde de la recommandation: {e}")
+
 # Créer l'agent Intellect (qui agrège les données)
 simon = Agent(
     name="simon",
@@ -43,6 +63,16 @@ class TokenAnalysisResponse(Model):
     recommendation: str = "hold"  # buy, sell, hold
     timestamp: str
     confidence_score: float = 0.0
+
+class TradingRecommendation(Model):
+    token_symbol: str
+    recommendation: str  # "buy", "sell", "hold"
+    confidence: float  # 0.0 to 1.0
+    reasoning: str
+    price_target: float = None
+    stop_loss: float = None
+    news_sentiment: str  # "positive", "negative", "neutral"
+    timestamp: str
 
 class GeneralMessage(Model):
     message: str
@@ -165,6 +195,58 @@ async def handle_analysis_response(ctx: Context, sender: str, msg: TokenAnalysis
     except Exception as e:
         ctx.logger.error(f"❌ Erreur lors du traitement de l'analyse: {e}")
 
+# Gestionnaire pour recevoir les recommandations de trading d'Intellect
+@communication_protocol.on_message(model=TradingRecommendation)
+async def handle_trading_recommendation(ctx: Context, sender: str, msg: TradingRecommendation):
+    """Traite les recommandations de trading reçues d'Intellect"""
+    try:
+        ctx.logger.info(f"🎯 Recommandation de trading reçue pour {msg.token_symbol}")
+        
+        # Analyser la recommandation
+        risk_level = "LOW" if msg.confidence >= 0.7 else "MEDIUM" if msg.confidence >= 0.4 else "HIGH"
+        confidence_pct = int(msg.confidence * 100)
+        
+        # Log détaillé de la recommandation
+        ctx.logger.info("=" * 60)
+        ctx.logger.info(f"🎯 TOKEN: {msg.token_symbol}")
+        ctx.logger.info(f"📊 ACTION: {msg.recommendation.upper()}")
+        ctx.logger.info(f"💪 CONFIDENCE: {confidence_pct}% ({risk_level} risk)")
+        ctx.logger.info(f"💭 REASONING: {msg.reasoning[:100]}{'...' if len(msg.reasoning) > 100 else ''}")
+        ctx.logger.info(f"📈 SENTIMENT: {msg.news_sentiment}")
+        
+        if msg.price_target:
+            ctx.logger.info(f"🎯 TARGET PRICE: ${msg.price_target:.2f}")
+        if msg.stop_loss:
+            ctx.logger.info(f"🛑 STOP LOSS: ${msg.stop_loss:.2f}")
+        
+        ctx.logger.info("=" * 60)
+        
+        # Stocker la recommandation de trading
+        trading_recommendation = {
+            "token_symbol": msg.token_symbol,
+            "action": msg.recommendation,
+            "confidence": msg.confidence,
+            "confidence_level": risk_level,
+            "reasoning": msg.reasoning,
+            "news_sentiment": msg.news_sentiment,
+            "price_target": msg.price_target,
+            "stop_loss": msg.stop_loss,
+            "timestamp": msg.timestamp,
+            "received_at": datetime.now().isoformat()
+        }
+        
+        # Sauvegarder la recommandation
+        save_trading_recommendation_to_file(msg.token_symbol, trading_recommendation)
+        
+        # Si c'est un token suspect (très faible confiance), log d'avertissement
+        if msg.confidence <= 0.2:
+            ctx.logger.warning(f"⚠️ HIGH RISK TOKEN DETECTED: {msg.token_symbol}")
+            ctx.logger.warning(f"   Very low confidence ({confidence_pct}%) suggests suspicious token")
+            ctx.logger.warning(f"   Action: {msg.recommendation.upper()} - PROCEED WITH EXTREME CAUTION")
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors du traitement de la recommandation: {e}")
+
 # Gestionnaire pour les messages de type général dans le protocole
 @communication_protocol.on_message(model=GeneralMessage)
 async def handle_general_message_protocol(ctx: Context, sender: str, msg: GeneralMessage):
@@ -179,16 +261,6 @@ async def handle_analysis_request_echo(ctx: Context, sender: str, msg: TokenAnal
 
 # Inclure le protocole dans l'agent
 simon.include(communication_protocol)
-
-def save_analysis_to_file(token: str, analysis: dict):
-    """Sauvegarde l'analyse dans un fichier JSON"""
-    try:
-        filename = f"market_analysis_{token.lower()}.json"
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(analysis, f, indent=2, ensure_ascii=False)
-        logger.info(f"💾 Analyse sauvegardée dans {filename}")
-    except Exception as e:
-        logger.error(f"❌ Erreur lors de la sauvegarde: {e}")
 
 # Endpoint REST pour demander une analyse
 @simon.on_rest_post("/analyze", TokenAnalysisRequest, AnalysisRequestResponse)

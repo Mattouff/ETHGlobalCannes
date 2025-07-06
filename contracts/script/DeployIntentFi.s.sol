@@ -23,7 +23,7 @@ contract DeployIntentFi is Script {
         chainSelector: 16015286601757825753
     });
 
-    // Base Sepolia Testnet addresses  
+    // Base Sepolia Testnet addresses
     NetworkConfig public baseSepoliaConfig = NetworkConfig({
         ethUsdPriceFeed: 0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1,
         ccipRouter: 0xd3b06CEBF099Ce7Da4acCf578AAEfd5f4e89C8bA,
@@ -45,20 +45,27 @@ contract DeployIntentFi is Script {
     });
 
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        
+        string memory privateKeyStr = vm.envString("PRIVATE_KEY");
+        uint256 deployerPrivateKey;
+
+        // Handle private key with or without 0x prefix
+        if (bytes(privateKeyStr).length == 64) {
+            // No 0x prefix, add it
+            deployerPrivateKey = vm.parseUint(string(abi.encodePacked("0x", privateKeyStr)));
+        } else {
+            // Has 0x prefix
+            deployerPrivateKey = vm.parseUint(privateKeyStr);
+        }
+
         vm.startBroadcast(deployerPrivateKey);
 
         NetworkConfig memory config = getNetworkConfig();
-        
+
         console2.log("Deploying IntentFi on chain:", block.chainid);
         console2.log("Using ETH/USD Price Feed:", config.ethUsdPriceFeed);
         console2.log("Using CCIP Router:", config.ccipRouter);
 
-        IntentFi intentFi = new IntentFi(
-            config.ethUsdPriceFeed,
-            config.ccipRouter
-        );
+        IntentFi intentFi = new IntentFi(config.ethUsdPriceFeed, config.ccipRouter);
 
         console2.log("IntentFi deployed at:", address(intentFi));
 
@@ -70,14 +77,18 @@ contract DeployIntentFi is Script {
 
     function getNetworkConfig() internal view returns (NetworkConfig memory) {
         uint256 chainId = block.chainid;
-        
-        if (chainId == 11155111) { // Sepolia
+
+        if (chainId == 11155111) {
+            // Sepolia
             return sepoliaConfig;
-        } else if (chainId == 84532) { // Base Sepolia
+        } else if (chainId == 84532) {
+            // Base Sepolia
             return baseSepoliaConfig;
-        } else if (chainId == 11155420) { // Optimism Sepolia
+        } else if (chainId == 11155420) {
+            // Optimism Sepolia
             return optimismSepoliaConfig;
-        } else if (chainId == 421614) { // Arbitrum Sepolia
+        } else if (chainId == 421614) {
+            // Arbitrum Sepolia
             return arbitrumSepoliaConfig;
         } else {
             revert("Unsupported network");

@@ -82,6 +82,17 @@ contract DeployIntentFiEcosystem is Script {
             rpcUrl: vm.envString("ARBITRUM_SEPOLIA_RPC_URL"),
             etherscanApiKey: vm.envString("ARBISCAN_API_KEY")
         });
+
+        // Flow EVM Testnet configuration
+        chainConfigs[545] = ChainConfig({
+            chainSelector: 545, // Flow testnet chain selector
+            priceFeed: 0x694AA1769357215DE4FAC081bf1f309aDC325306, // Mock price feed for Flow (to be replaced)
+            ccipRouter: 0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59, // Mock CCIP router for Flow (to be replaced)
+            linkToken: 0x779877A7B0D9E8603169DdbD7836e478b4624789, // Mock LINK token for Flow (to be replaced)
+            usdc: 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238, // Mock USDC for Flow (to be replaced)
+            rpcUrl: "https://testnet.evm.nodes.onflow.org/",
+            etherscanApiKey: "" // Flow doesn't use Etherscan
+        });
     }
 
     /**
@@ -224,11 +235,12 @@ contract DeployIntentFiEcosystem is Script {
         advancedContract.setSupportedToken(config.usdc, true);
         
         // Add allowlisted chains for all supported chains
-        uint64[] memory chainSelectors = new uint64[](4);
+        uint64[] memory chainSelectors = new uint64[](5);
         chainSelectors[0] = 16015286601757825753; // Sepolia
         chainSelectors[1] = 10344971235874465080; // Base Sepolia
         chainSelectors[2] = 5224473277236331295;  // Optimism Sepolia
         chainSelectors[3] = 3478487238524512106;  // Arbitrum Sepolia
+        chainSelectors[4] = 545;                  // Flow EVM Testnet
         
         for (uint256 i = 0; i < chainSelectors.length; i++) {
             IntentFi(payable(contracts.intentFi)).allowlistDestinationChain(chainSelectors[i], true);
@@ -297,11 +309,12 @@ contract DeployIntentFiEcosystem is Script {
     function deployMultiChain() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         
-        uint256[] memory supportedChains = new uint256[](4);
+        uint256[] memory supportedChains = new uint256[](5);
         supportedChains[0] = 11155111; // Sepolia
         supportedChains[1] = 84532;    // Base Sepolia
         supportedChains[2] = 11155420; // Optimism Sepolia
         supportedChains[3] = 421614;   // Arbitrum Sepolia
+        supportedChains[4] = 545;      // Flow EVM Testnet
         
         for (uint256 i = 0; i < supportedChains.length; i++) {
             uint256 chainId = supportedChains[i];
