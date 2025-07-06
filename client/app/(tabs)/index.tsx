@@ -1,15 +1,16 @@
+import { AppKitButton, useAppKit } from "@reown/appkit-wagmi-react-native";
+import { useCallback, useEffect, useState } from "react";
 import {
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
-  RefreshControl,
   ActivityIndicator,
+  Dimensions,
+  Linking,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
 } from "react-native";
-import { useAppKit, AppKitButton } from "@reown/appkit-wagmi-react-native";
 import { useAccount, useChainId } from "wagmi";
-import { useState, useEffect, useCallback } from "react";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -25,6 +26,8 @@ interface Token {
   readableBalance: number;
   symbol: string;
   tokenBalance: string;
+  price_usd?: number;
+  value_usd?: number;
 }
 
 interface ApiResponse {
@@ -35,6 +38,22 @@ interface ApiResponse {
   token_count: number;
   tokens: Token[];
   total_value_usd?: number;
+}
+
+interface AgentHealth {
+  status: string;
+  agent: string;
+  address: string;
+  timestamp: string;
+}
+
+interface AgentStatus {
+  name: string;
+  address: string;
+  port: number;
+  health: AgentHealth | null;
+  isLoading: boolean;
+  error: string | null;
 }
 
 function formatLargeNumber(num: number): string {
@@ -75,6 +94,28 @@ const getChainEndpoint = (chainId: number): string | null => {
   }
 };
 
+// Agent addresses and configuration
+const AGENTS_CONFIG = [
+  {
+    name: "Intellect Agent",
+    address:
+      "agent1qf82uz69zk3dlw6k3y5aewlfaavcxed29a8w9rmxqsf20tgnwtx9xxdrf24",
+    port: 8000,
+  },
+  {
+    name: "Simon Agent",
+    address:
+      "agent1qvd8tt75720p60aggzlna7rep89rmadhrt67cllz486w4y6www06vquhcca",
+    port: 8003,
+  },
+  {
+    name: "News Agent",
+    address:
+      "agent1qw7xczpxattre89f398ljwfy2cpw7hpvy607l3zn8afdtdmxsufaww898sm",
+    port: 8002,
+  },
+];
+
 // Service pour récupérer les tokens
 const fetchUserTokens = async (
   address: string,
@@ -87,7 +128,6 @@ const fetchUserTokens = async (
       return null;
     }
 
-    // Utiliser l'IP locale au lieu de 127.0.0.1 pour iOS
     const apiUrl = `${config.API_BASE_API_URL}/tokens/${endpoint}/${address}`;
     console.log(`Fetching tokens from: ${apiUrl}`);
 
@@ -97,10 +137,25 @@ const fetchUserTokens = async (
     }
 
     const data: ApiResponse = await response.json();
-    console.log(`API Response:`, data);
+    //console.log(`API Response:`, data);
     return data;
   } catch (error) {
     console.error("Error fetching tokens:", error);
+    return null;
+  }
+};
+
+// Service pour récupérer la santé des agents
+const fetchAgentHealth = async (port: number): Promise<AgentHealth | null> => {
+  try {
+    const response = await fetch(`${config.LOCAL_IP_ADDRESS}:${port}/health`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const health: AgentHealth = await response.json();
+    return health;
+  } catch (error) {
+    console.error(`Error fetching agent health on port ${port}:`, error);
     return null;
   }
 };
@@ -114,6 +169,15 @@ export default function HomeScreen() {
   const [totalValue, setTotalValue] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hideSmallBalances, setHideSmallBalances] = useState(false);
+  const [agentsStatus, setAgentsStatus] = useState<AgentStatus[]>(
+    AGENTS_CONFIG.map((agent) => ({
+      ...agent,
+      health: null,
+      isLoading: false,
+      error: null,
+    }))
+  );
 
   // Fonction pour charger les données
   const loadTokenData = useCallback(async () => {
@@ -126,13 +190,8 @@ export default function HomeScreen() {
 
     if (data && data.success) {
       setTokens(data.tokens);
-      // Calculer la valeur totale basée sur les balances
-      const total = data.tokens.reduce((sum, token) => {
-        // Estimation simple: ETH = $2500, autres tokens = $1
-        const price = token.symbol === "ETH" ? 2500 : 1;
-        return sum + token.readableBalance * price;
-      }, 0);
-      setTotalValue(total);
+      // Use the real total_value_usd from the API instead of manual calculation
+      setTotalValue(data.total_value_usd || 0);
       setError(null);
     } else {
       setTokens([]);
@@ -143,6 +202,44 @@ export default function HomeScreen() {
     setLoading(false);
   }, [address, isConnected, chainId]);
 
+  // Fonction pour charger le statut des agents
+  const loadAgentsStatus = useCallback(async () => {
+    console.log("Loading agents status...");
+
+    // Set loading state for all agents
+    setAgentsStatus((prev) =>
+      prev.map((agent) => ({
+        ...agent,
+        isLoading: true,
+        error: null,
+      }))
+    );
+
+    // Fetch health for each agent
+    const updatedStatuses = await Promise.all(
+      AGENTS_CONFIG.map(async (agentConfig) => {
+        try {
+          const health = await fetchAgentHealth(agentConfig.port);
+          return {
+            ...agentConfig,
+            health,
+            isLoading: false,
+            error: health ? null : "Agent not responding",
+          };
+        } catch (error) {
+          return {
+            ...agentConfig,
+            health: null,
+            isLoading: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          };
+        }
+      })
+    );
+
+    setAgentsStatus(updatedStatuses);
+  }, []);
+
   // Charger les données au montage et changement de chaîne
   useEffect(() => {
     if (isConnected && address) {
@@ -150,12 +247,17 @@ export default function HomeScreen() {
     }
   }, [isConnected, address, chainId, loadTokenData]);
 
+  // Charger le statut des agents au montage
+  useEffect(() => {
+    loadAgentsStatus();
+  }, [loadAgentsStatus]);
+
   // Fonction de refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadTokenData();
+    await Promise.all([loadTokenData(), loadAgentsStatus()]);
     setRefreshing(false);
-  }, [loadTokenData]);
+  }, [loadTokenData, loadAgentsStatus]);
 
   if (!isConnected) {
     return (
@@ -310,8 +412,81 @@ export default function HomeScreen() {
             </ThemedView>
           </ThemedView>
 
+          <ThemedView style={styles.agentsSection}>
+            <ThemedText style={styles.sectionTitle}>
+              AI Agents Status
+            </ThemedText>
+
+            <ThemedView style={styles.agentsGrid}>
+              {agentsStatus.map((agent, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.agentCard}
+                  onPress={() => {
+                    // Open agent profile URL in browser
+                    const agentUrl = `https://agentverse.ai/agents/details/${agent.address}/profile`;
+                    Linking.openURL(agentUrl).catch((err) =>
+                      console.error("Failed to open URL:", err)
+                    );
+                  }}
+                >
+                  <ThemedView style={styles.agentHeader}>
+                    <ThemedText style={styles.agentName}>
+                      {agent.name}
+                    </ThemedText>
+                    <ThemedView
+                      style={[
+                        styles.statusIndicator,
+                        {
+                          backgroundColor:
+                            agent.health?.status === "healthy"
+                              ? "#4ade80"
+                              : "#ef4444",
+                        },
+                      ]}
+                    />
+                  </ThemedView>
+
+                  <ThemedText style={styles.agentStatus}>
+                    {agent.isLoading
+                      ? "Checking..."
+                      : agent.health
+                      ? agent.health.status
+                      : "Offline"}
+                  </ThemedText>
+
+                  <ThemedText style={styles.agentPort}>
+                    Port: {agent.port}
+                  </ThemedText>
+
+                  {agent.health && (
+                    <ThemedText style={styles.agentTimestamp}>
+                      {new Date(agent.health.timestamp).toLocaleTimeString()}
+                    </ThemedText>
+                  )}
+
+                  {agent.error && (
+                    <ThemedText style={styles.agentError}>
+                      {agent.error}
+                    </ThemedText>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ThemedView>
+          </ThemedView>
+
           <ThemedView style={styles.tokensSection}>
-            <ThemedText style={styles.sectionTitle}>Your Tokens</ThemedText>
+            <ThemedView style={styles.tokensSectionHeader}>
+              <ThemedText style={styles.sectionTitle}>Your Tokens</ThemedText>
+              <TouchableOpacity
+                style={styles.filterToggle}
+                onPress={() => setHideSmallBalances(!hideSmallBalances)}
+              >
+                <ThemedText style={styles.filterToggleText}>
+                  {hideSmallBalances ? "👁️" : "👁️‍🗨️"} Hide small balances
+                </ThemedText>
+              </TouchableOpacity>
+            </ThemedView>
 
             {error && (
               <ThemedView style={styles.errorContainer}>
@@ -336,35 +511,41 @@ export default function HomeScreen() {
               </ThemedView>
             ) : !error && tokens.length > 0 ? (
               <ThemedView style={styles.tokensList}>
-                {tokens.map((token, index) => {
-                  // Prix estimé simple
-                  const estimatedPrice = token.symbol === "ETH" ? 2500 : 1;
-                  const totalValue = token.readableBalance * estimatedPrice;
+                {tokens
+                  .filter((token) => {
+                    if (!hideSmallBalances) return true;
+                    const tokenValue = token.value_usd || 0;
+                    return tokenValue >= 0.01;
+                  })
+                  .map((token, index) => {
+                    // Use real USD values from API instead of estimation
+                    const tokenPrice = token.price_usd || 0;
+                    const tokenValue = token.value_usd || 0;
 
-                  return (
-                    <ThemedView
-                      key={`${token.contractAddress}-${index}`}
-                      style={styles.tokenCard}
-                    >
-                      <ThemedView style={styles.tokenHeader}>
-                        <ThemedText style={styles.tokenSymbol}>
-                          {token.symbol}
-                        </ThemedText>
-                        <ThemedText style={styles.tokenValue}>
-                          ${totalValue.toFixed(2)}
-                        </ThemedText>
+                    return (
+                      <ThemedView
+                        key={`${token.contractAddress}-${index}`}
+                        style={styles.tokenCard}
+                      >
+                        <ThemedView style={styles.tokenHeader}>
+                          <ThemedText style={styles.tokenSymbol}>
+                            {token.symbol}
+                          </ThemedText>
+                          <ThemedText style={styles.tokenValue}>
+                            ${tokenValue.toFixed(2)}
+                          </ThemedText>
+                        </ThemedView>
+                        <ThemedView style={styles.tokenDetails}>
+                          <ThemedText style={styles.tokenAmount}>
+                            {token.readableBalance.toFixed(4)} {token.symbol}
+                          </ThemedText>
+                          <ThemedText style={styles.tokenPrice}>
+                            ${tokenPrice.toFixed(2)}
+                          </ThemedText>
+                        </ThemedView>
                       </ThemedView>
-                      <ThemedView style={styles.tokenDetails}>
-                        <ThemedText style={styles.tokenAmount}>
-                          {token.readableBalance.toFixed(4)} {token.symbol}
-                        </ThemedText>
-                        <ThemedText style={styles.tokenPrice}>
-                          ${estimatedPrice.toFixed(2)}
-                        </ThemedText>
-                      </ThemedView>
-                    </ThemedView>
-                  );
-                })}
+                    );
+                  })}
               </ThemedView>
             ) : !error && tokens.length === 0 ? (
               <ThemedView style={styles.emptyContainer}>
@@ -618,11 +799,95 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  // Agents Section
+  agentsSection: {
+    marginBottom: 40,
+    backgroundColor: "rgba(0, 0, 0, 0)",
+  },
+  agentsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+    backgroundColor: "rgba(0, 0, 0, 0)",
+  },
+  agentCard: {
+    width: (width - 56) / 3 - 4, // 3 cards per row with small gap
+    borderRadius: 16,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  agentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    height: 50,
+    marginBottom: 8,
+  },
+  agentName: {
+    marginRight: 2,
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#fff",
+    flex: 1,
+    textAlign: "center",
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 4,
+  },
+  agentStatus: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.8)",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  agentPort: {
+    fontSize: 9,
+    color: "rgba(255, 255, 255, 0.6)",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  agentTimestamp: {
+    fontSize: 8,
+    color: "rgba(255, 255, 255, 0.5)",
+    textAlign: "center",
+  },
+  agentError: {
+    fontSize: 8,
+    color: "#ef4444",
+    textAlign: "center",
+    marginTop: 2,
+  },
+
   // Tokens Section
   tokensSection: {
     marginTop: 20,
     backgroundColor: "rgba(0, 0, 0, 0)",
     marginBottom: 60,
+  },
+  tokensSectionHeader: {
+    flexDirection: "row",
+    backgroundColor: "rgba(0, 0, 0, 0)",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  filterToggle: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  filterToggleText: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.8)",
   },
   tokensList: {
     gap: 12,
@@ -668,6 +933,7 @@ const styles = StyleSheet.create({
   loadingContainer: {
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0)",
     padding: 40,
   },
   loadingText: {

@@ -43,7 +43,7 @@ export default function NewsScreen() {
   const fetchNews = async () => {
     try {
       setError(null);
-      const newsUrl = `${config.API_BASE_AGENT_URL}/getJson`;
+      const newsUrl = `${config.API_INTELLECT_AGENT_URL}/getJson`;
       console.log("Fetching news from:", newsUrl);
       const response = await fetch(newsUrl);
 
@@ -72,7 +72,7 @@ export default function NewsScreen() {
         errorMessage.includes("fetch")
       ) {
         setError(
-          `Cannot connect to news service. Check if the backend is running at ${config.API_BASE_AGENT_URL}`
+          `Cannot connect to news service. Check if the backend is running at ${config.API_NEWS_AGENT_URL}`
         );
       } else {
         setError(`Failed to fetch news: ${errorMessage}`);
