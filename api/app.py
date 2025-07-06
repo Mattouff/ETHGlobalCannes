@@ -263,10 +263,15 @@ def get_token_metadata(contract_address, rpc_url):
         
         if "result" in data and data["result"]:
             result = data["result"]
+            # Ensure decimals is always a valid integer
+            decimals = result.get("decimals")
+            if decimals is None or not isinstance(decimals, int):
+                decimals = 18
+                
             return {
                 "name": result.get("name", "Unknown Token"),
                 "symbol": result.get("symbol", "???"),
-                "decimals": result.get("decimals", 18)
+                "decimals": decimals
             }
         else:
             return default_metadata
@@ -274,6 +279,13 @@ def get_token_metadata(contract_address, rpc_url):
     except Exception as e:
         print(f"Error getting token metadata for {contract_address}: {str(e)}")
         return default_metadata
+
+
+def safe_decimals(decimals):
+    """Ensure decimals is always a valid integer for power operations"""
+    if decimals is None or not isinstance(decimals, int) or decimals < 0:
+        return 18
+    return decimals
 
 def get_token_price_simple(token_symbol, contract_address=None, platform="ethereum"):
     """Simplified token price fetching - contract address first, then symbol for native tokens"""
@@ -476,8 +488,9 @@ def get_eth_tokens_balances(address):
                 # Récupérer les métadonnées du token
                 metadata = get_token_metadata(balance["contractAddress"], ALCHEMY_ETH_URL)
                 
-                # Calculer le montant lisible
-                readable_balance = token_balance_int / (10 ** metadata["decimals"])
+                # Calculer le montant lisible avec sécurité pour les décimales
+                decimals = safe_decimals(metadata["decimals"])
+                readable_balance = token_balance_int / (10 ** decimals)
                 
                 token_info = {
                     "contractAddress": balance["contractAddress"],
@@ -485,7 +498,7 @@ def get_eth_tokens_balances(address):
                     "readableBalance": readable_balance,
                     "name": metadata["name"],
                     "symbol": metadata["symbol"],
-                    "decimals": metadata["decimals"]
+                    "decimals": decimals  # Use the safe decimals value
                 }
                 non_zero_balances.append(token_info)
                 print(f"✅ Added token: {metadata['symbol']} = {readable_balance}")
@@ -596,8 +609,9 @@ def get_base_token_balances(address):
                 # Récupérer les métadonnées du token
                 metadata = get_token_metadata(balance["contractAddress"], ALCHEMY_BASE_URL)
                 
-                # Calculer le montant lisible
-                readable_balance = token_balance_int / (10 ** metadata["decimals"])
+                # Calculer le montant lisible avec sécurité pour les décimales
+                decimals = safe_decimals(metadata["decimals"])
+                readable_balance = token_balance_int / (10 ** decimals)
                 
                 token_info = {
                     "contractAddress": balance["contractAddress"],
@@ -605,7 +619,7 @@ def get_base_token_balances(address):
                     "readableBalance": readable_balance,
                     "name": metadata["name"],
                     "symbol": metadata["symbol"],
-                    "decimals": metadata["decimals"]
+                    "decimals": decimals  # Use the safe decimals value
                 }
                 non_zero_balances.append(token_info)
                 print(f"✅ Added token: {metadata['symbol']} = {readable_balance}")
@@ -719,9 +733,10 @@ def get_flow_token_balances(address):
                     # Récupérer les métadonnées du token
                     metadata = get_token_metadata(balance["contractAddress"], ALCHEMY_FLOW_URL)
                     
-                    # Calculer le montant lisible
+                    # Calculer le montant lisible avec sécurité pour les décimales
                     raw_balance = int(balance["tokenBalance"], 16)
-                    readable_balance = raw_balance / (10 ** metadata["decimals"])
+                    decimals = safe_decimals(metadata["decimals"])
+                    readable_balance = raw_balance / (10 ** decimals)
                     
                     token_info = {
                         "contractAddress": balance["contractAddress"],
@@ -729,7 +744,7 @@ def get_flow_token_balances(address):
                         "readableBalance": readable_balance,
                         "name": metadata["name"],
                         "symbol": metadata["symbol"],
-                        "decimals": metadata["decimals"],
+                        "decimals": decimals,  # Use the safe decimals value
                         "type": "erc20"
                     }
                     erc20_tokens.append(token_info)
@@ -1609,7 +1624,8 @@ def quick_balance_check(address):
                 balance_int = int(balance["tokenBalance"], 16)
                 if balance_int > 0:
                     metadata = get_token_metadata(balance["contractAddress"], ALCHEMY_ETH_URL)
-                    readable_balance = balance_int / (10 ** metadata["decimals"])
+                    decimals = safe_decimals(metadata["decimals"])
+                    readable_balance = balance_int / (10 ** decimals)
                     
                     tokens_with_balance.append({
                         "contractAddress": balance["contractAddress"],
@@ -1617,7 +1633,7 @@ def quick_balance_check(address):
                         "readableBalance": readable_balance,
                         "name": metadata["name"],
                         "symbol": metadata["symbol"],
-                        "decimals": metadata["decimals"]
+                        "decimals": decimals  # Use the safe decimals value
                     })
     except:
         pass
@@ -1741,9 +1757,10 @@ def get_all_tokens(address):
                     # Récupérer les métadonnées du token
                     metadata = get_token_metadata(balance["contractAddress"], chain_url)
                     
-                    # Calculer le montant lisible
+                    # Calculer le montant lisible avec sécurité pour les décimales
                     raw_balance = int(balance["tokenBalance"], 16)
-                    readable_balance = raw_balance / (10 ** metadata["decimals"])
+                    decimals = safe_decimals(metadata["decimals"])
+                    readable_balance = raw_balance / (10 ** decimals)
                     
                     token_info = {
                         "contractAddress": balance["contractAddress"],
@@ -1751,7 +1768,7 @@ def get_all_tokens(address):
                         "readableBalance": readable_balance,
                         "name": metadata["name"],
                         "symbol": metadata["symbol"],
-                        "decimals": metadata["decimals"],
+                        "decimals": decimals,  # Use the safe decimals value
                         "chain": chain_name,
                         "type": "erc20"
                     }
@@ -1900,7 +1917,9 @@ def check_specific_token_balances(address, rpc_url, token_contracts):
                 balance_int = int(balance_hex, 16)
                 
                 if balance_int > 0:
-                    readable_balance = balance_int / (10 ** token["decimals"])
+                    # Use safe decimals to prevent NoneType errors
+                    decimals = safe_decimals(token["decimals"])
+                    readable_balance = balance_int / (10 ** decimals)
                     
                     token_info = {
                         "contractAddress": token["address"],
@@ -1908,7 +1927,7 @@ def check_specific_token_balances(address, rpc_url, token_contracts):
                         "readableBalance": readable_balance,
                         "name": token["name"],
                         "symbol": token["symbol"],
-                        "decimals": token["decimals"]
+                        "decimals": decimals
                     }
                     tokens_found.append(token_info)
                     print(f"✅ Found specific token: {token['symbol']} = {readable_balance}")
