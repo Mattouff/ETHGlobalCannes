@@ -1,10 +1,17 @@
-from typing import Any
+from typing import Any, Dict
 from uagents import Agent, Context, Model, Protocol
 from uagents.setup import fund_agent_if_low
 import json
 import uuid
 from datetime import datetime
 import os
+import aiohttp
+import statistics
+import logging
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class TextPrompt(Model):
@@ -87,19 +94,26 @@ agent = Agent(
     port=8000,
     seed="intentfi-agent-seed-phrase",
     endpoint=["http://localhost:8000/submit"],
+    mailbox=True,
 )
 
 print(f"Agent address: {agent.address}")
 fund_agent_if_low(agent.wallet.address())
 
 AI_AGENT_ADDRESS = "agent1qvk7q2av3e2y5gf5s90nfzkc8a48q3wdqeevwrtgqfdl0k78rspd6f2l4dx"
-SIMON_AGENT_ADDRESS = "agent1qvd8tt75720p60aggzlna7rep89rmadhrt67cllz486w4y6www06vquhcca"
+SIMON_AGENT_ADDRESS = "agent1q0q5rqwj7q4upgm7fwf4dmv675nl4nqgy9tgp3qgyn8wlxwz804pxuj7032"  # Simon Agent
+
+# Tokens autorisés pour les recommandations de trading
+ALLOWED_TOKENS = ["ARBITRUM", "ETH", "FLOW", "OPTI"]
 
 # Fichier des actualités généré par news.py
 NEWS_FILE = "news_logs.json"
 
 # Protocol pour IntentFi
 intentfi_protocol = Protocol("IntentFi")
+
+# Protocol pour la communication avec Simon
+simon_protocol = Protocol("IntellectCommunication")
 
 
 @intentfi_protocol.on_message(model=IntentRequest)
@@ -306,58 +320,17 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
                 
                 return response
         
-        # Timeout après 5 secondes - Claude ne répond pas
-        ctx.logger.warning(f"⏰ Timeout rapide: Claude AI ne répond pas (probablement hors ligne)")
+        # Timeout - retourner une recommandation par défaut
+        ctx.logger.warning("⏰ Timeout - Claude AI ne répond pas, retour d'une recommandation par défaut")
         
-        # Nettoyer
-        if request_id in pending_requests:
-            del pending_requests[request_id]
-        
-        # Retourner directement une recommandation de fallback intelligente
-        ctx.logger.info("🤖 Génération d'une recommandation de fallback intelligente...")
-        
-        if request.intent_type == "price_based":
-            return {
-                "type": "conditional_transfer",
-                "condition": "ETH > $3200",
-                "action": "Transfer 50 USDC to Optimism via LayerZero",
-                "confidence": 0.7,
-                "reasoning": "Recommandation IntentFi: Basée sur l'analyse technique ETH. Niveau de résistance clé à $3200. Optimism choisi pour les frais réduits via LayerZero.",
-                "cross_chain_details": {
-                    "source_chain": "Ethereum",
-                    "target_chain": "Optimism", 
-                    "estimated_gas": "$3-6 USD"
-                },
-                "fallback": True,
-                "chainlink_trigger": True
-            }
-        elif request.intent_type == "time_based":
-            return {
-                "type": "scheduled_dca",
-                "schedule": "Weekly on Sundays at 12:00 UTC",
-                "action": "DCA 20 USDC into ETH, split 70% Ethereum / 30% Arbitrum",
-                "confidence": 0.8,
-                "reasoning": "Recommandation IntentFi: DCA hebdomadaire optimal pour réduire la volatilité. Split multi-chain via LayerZero pour optimiser les coûts.",
-                "chainlink_automation": True,
-                "fallback": True
-            }
-        elif request.intent_type == "risk_management":
-            return {
-                "type": "stop_loss_protection",
-                "condition": "ETH < $2900 OR portfolio_loss > 12%",
-                "action": "Convert 25% ETH to USDC, distribute across Polygon and Base",
-                "confidence": 0.75,
-                "reasoning": "Recommandation IntentFi: Protection contre volatilité excessive. Diversification multi-chain automatique via LayerZero.",
-                "chainlink_monitoring": True,
-                "fallback": True
-            }
-        else:
-            return {
-                "type": "hold_strategy",
-                "reasoning": "Recommandation IntentFi: Type d'intent non reconnu. Stratégie conservatrice recommandée en attendant clarification.",
-                "suggested_action": "Définir un intent spécifique (price_based, time_based, risk_management)",
-                "fallback": True
-            }
+        return {
+            "type": "hold_position",
+            "condition": "market_analysis_pending",
+            "action": "Attendre une analyse de marché plus détaillée",
+            "confidence": 0.3,
+            "reasoning": "Timeout de l'analyse IA. Recommandation de prudence en attendant plus d'informations.",
+            "request_id": request_id
+        }
             
     except Exception as e:
         ctx.logger.error(f"❌ Erreur lors de l'envoi à Claude AI: {e}")
@@ -485,6 +458,7 @@ async def get_news_json(ctx: Context) -> NewsJsonResponse:
 
 
 agent.include(intentfi_protocol)
+agent.include(simon_protocol)
 
 class Location(Model):
     city: str
@@ -626,50 +600,321 @@ async def handle_structured_response(ctx: Context, sender: str, msg: StructuredO
         ctx.logger.info(f"📋 Données brutes: {msg.output}")
 
 
+async def get_token_market_data(ctx: Context, token_symbol: str):
+    """Récupère les données de marché réelles pour un token via API publique"""
+    try:
+        # Utiliser CoinGecko API (gratuite, pas besoin de clé)
+        import aiohttp
+        
+        # Mapping des tokens vers leurs IDs CoinGecko
+        token_mapping = {
+            'BTC': 'bitcoin',
+            'ETH': 'ethereum', 
+            'USDC': 'usd-coin',
+            'USDT': 'tether',
+            'BNB': 'binancecoin',
+            'SOL': 'solana',
+            'ADA': 'cardano',
+            'MATIC': 'matic-network',
+            'AVAX': 'avalanche-2',
+            'DOT': 'polkadot',
+            'LINK': 'chainlink',
+            'UNI': 'uniswap',
+            'ARB': 'arbitrum',
+            'OP': 'optimism',
+            'FLOW': 'flow'
+        }
+        
+        token_id = token_mapping.get(token_symbol.upper())
+        
+        if not token_id:
+            ctx.logger.warning(f"⚠️ Token {token_symbol} non trouvé dans le mapping CoinGecko")
+            return None
+        
+        async with aiohttp.ClientSession() as session:
+            url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_id}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true"
+            
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if token_id in data:
+                        token_data = data[token_id]
+                        return {
+                            'symbol': token_symbol.upper(),
+                            'price_usd': token_data.get('usd'),
+                            'price_change_24h': token_data.get('usd_24h_change'),
+                            'market_cap': token_data.get('usd_market_cap'),
+                            'volume_24h': token_data.get('usd_24h_vol')
+                        }
+                else:
+                    ctx.logger.warning(f"⚠️ Erreur API CoinGecko: {response.status}")
+                    return None
+                    
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de la récupération des données de marché: {e}")
+        return None
+
+async def analyze_technical_levels(ctx: Context, token_symbol: str, current_price: float, price_change_24h: float):
+    """Analyse technique simplifiée pour calculer les niveaux de support et résistance"""
+    try:
+        # Calculs basiques d'analyse technique
+        volatility = abs(price_change_24h) / 100
+        
+        # Support et résistance basés sur le prix actuel et la volatilité
+        if price_change_24h > 0:
+            # Prix en hausse - support plus proche, résistance plus haute
+            support_level = current_price * (1 - max(0.05, volatility * 1.5))
+            resistance_level = current_price * (1 + max(0.08, volatility * 2))
+        elif price_change_24h < 0:
+            # Prix en baisse - support plus bas, résistance plus proche  
+            support_level = current_price * (1 - max(0.08, volatility * 2))
+            resistance_level = current_price * (1 + max(0.05, volatility * 1.5))
+        else:
+            # Prix stable - niveaux équilibrés
+            support_level = current_price * 0.92
+            resistance_level = current_price * 1.08
+        
+        return {
+            'support': round(support_level, 6),
+            'resistance': round(resistance_level, 6),
+            'volatility': volatility
+        }
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur analyse technique: {e}")
+        return None
+
+async def generate_smart_recommendation(ctx: Context, token_symbol: str, market_data: dict, news_data: list, technical_levels: dict):
+    """Génère une recommandation intelligente basée sur les données de marché et les news"""
+    try:
+        current_price = market_data.get('price_usd', 100)
+        price_change_24h = market_data.get('price_change_24h', 0)
+        market_cap = market_data.get('market_cap', 0)
+        volume_24h = market_data.get('volume_24h', 0)
+        
+        # Analyse du sentiment des news
+        sentiment_score = 0
+        if news_data:
+            all_text = " ".join([str(article.get("title", "")) + " " + str(article.get("content", "")) for article in news_data[:5]])
+            positive_words = ["bullish", "rise", "growth", "gain", "increase", "positive", "up", "rally", "breakout", "adoption", "partnership"]
+            negative_words = ["bearish", "fall", "decline", "loss", "decrease", "negative", "down", "crash", "dump", "risk", "regulation"]
+            
+            positive_count = sum(1 for word in positive_words if word in all_text.lower())
+            negative_count = sum(1 for word in negative_words if word in all_text.lower())
+            sentiment_score = positive_count - negative_count
+        
+        # Catégorisation du token
+        token_lower = token_symbol.lower()
+        major_tokens = ['eth', 'ethereum', 'btc', 'bitcoin', 'usdc', 'usdt', 'bnb', 'ada', 'sol', 'matic', 'avax', 'dot', 'link', 'uni']
+        l2_tokens = ['arb', 'arbitrum', 'op', 'optimism', 'matic', 'polygon', 'flow']
+        
+        is_major = any(token in token_lower for token in major_tokens)
+        is_l2 = any(token in token_lower for token in l2_tokens)
+        
+        # Calcul des niveaux de prix techniques
+        support = technical_levels.get('support', current_price * 0.9)
+        resistance = technical_levels.get('resistance', current_price * 1.1)
+        volatility = technical_levels.get('volatility', 0.05)
+        
+        # Logique de recommandation avancée
+        if market_cap and market_cap > 1_000_000_000:  # Market cap > 1B
+            # Token établi avec grosse capitalisation
+            if price_change_24h > 5 and sentiment_score >= 2:
+                action = "buy"
+                confidence = min(0.85, 0.70 + (sentiment_score * 0.05))
+                price_target = resistance * 1.1
+                stop_loss = support * 0.95
+                reasoning = f"Strong bullish momentum for {token_symbol} with {price_change_24h:.2f}% gain and positive news sentiment. " \
+                           f"Large cap token ({market_cap/1e9:.1f}B) showing technical breakout above ${current_price:.4f}. " \
+                           f"Target: ${price_target:.4f} (resistance + 10%), Stop: ${stop_loss:.4f}."
+                           
+            elif price_change_24h < -8 and sentiment_score <= -2:
+                action = "sell"
+                confidence = min(0.80, 0.65 + abs(sentiment_score * 0.05))
+                price_target = support * 0.9
+                stop_loss = resistance * 1.02
+                reasoning = f"Significant bearish pressure on {token_symbol} with {price_change_24h:.2f}% decline and negative sentiment. " \
+                           f"Large cap token showing technical breakdown below ${current_price:.4f}. " \
+                           f"Target: ${price_target:.4f} (support -10%), Stop: ${stop_loss:.4f}."
+                           
+            else:
+                action = "hold"
+                confidence = 0.70 + (volatility * 5)  # Plus de volatilité = moins de confiance
+                price_target = None
+                stop_loss = support
+                reasoning = f"Neutral momentum for established token {token_symbol}. Current price ${current_price:.4f} " \
+                           f"trading within technical range (Support: ${support:.4f}, Resistance: ${resistance:.4f}). " \
+                           f"Await clearer directional signals. Volatility: {volatility:.1%}"
+                           
+        elif is_major or is_l2:
+            # Token connu mais plus petite cap
+            if sentiment_score >= 1 and price_change_24h > 0:
+                action = "buy"
+                confidence = 0.72
+                price_target = current_price * 1.15
+                stop_loss = current_price * 0.85
+                reasoning = f"Positive sentiment for {token_symbol} with {price_change_24h:.2f}% change. " \
+                           f"Established project with growth potential. Target: ${price_target:.4f} (+15%), " \
+                           f"Stop: ${stop_loss:.4f} (-15%)."
+                           
+            elif sentiment_score <= -1 and price_change_24h < -5:
+                action = "sell"
+                confidence = 0.68
+                price_target = current_price * 0.88
+                stop_loss = current_price * 1.08
+                reasoning = f"Negative sentiment and price decline for {token_symbol}. " \
+                           f"Consider reducing exposure. Target: ${price_target:.4f} (-12%), " \
+                           f"Stop: ${stop_loss:.4f} (+8%)."
+                           
+            else:
+                action = "hold"
+                confidence = 0.60
+                price_target = None
+                stop_loss = current_price * 0.90
+                reasoning = f"Mixed signals for {token_symbol}. Established project but unclear short-term direction. " \
+                           f"Monitor at ${current_price:.4f} with stop at ${stop_loss:.4f}."
+        else:
+            # Token inconnu ou risqué
+            action = "hold"
+            confidence = 0.25
+            price_target = None
+            stop_loss = None
+            reasoning = f"Unknown or high-risk token {token_symbol}. Insufficient market data and news coverage " \
+                       f"for confident trading recommendation. Current price: ${current_price:.4f}. " \
+                       f"Conduct thorough research before trading."
+        
+        # Détermination du sentiment final
+        if sentiment_score >= 3:
+            news_sentiment = "very_positive"
+        elif sentiment_score >= 1:
+            news_sentiment = "positive"
+        elif sentiment_score <= -3:
+            news_sentiment = "very_negative"
+        elif sentiment_score <= -1:
+            news_sentiment = "negative"
+        else:
+            news_sentiment = "neutral"
+        
+        return {
+            "recommendation": action,
+            "confidence": round(confidence, 2),
+            "reasoning": reasoning,
+            "price_target": round(price_target, 6) if price_target else None,
+            "stop_loss": round(stop_loss, 6) if stop_loss else None,
+            "news_sentiment": news_sentiment,
+            "technical_levels": {
+                "support": support,
+                "resistance": resistance,
+                "current_price": current_price,
+                "volume_24h": volume_24h,
+                "market_cap": market_cap
+            },
+            "market_analysis": {
+                "price_change_24h": price_change_24h,
+                "volatility": volatility,
+                "sentiment_score": sentiment_score
+            }
+        }
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur génération recommandation: {e}")
+        return None
+
 async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str, news_data: list = None):
-    """Envoie une recommandation de trading à Simon basée sur les actualités et l'analyse IA"""
+    """Envoie une recommandation de trading avancée à Simon basée sur l'analyse de marché et les actualités"""
     
     try:
-        ctx.logger.info(f"📊 Génération d'une recommandation de trading pour {token_symbol}...")
+        ctx.logger.info(f"📊 Génération d'une recommandation de trading avancée pour {token_symbol}...")
         
         # Si pas de news fournie, récupérer les actualités récentes
         if news_data is None:
             news_data = await get_recent_news_context(ctx)
+        
+        # Récupérer les données de marché réelles
+        market_data = await get_token_market_data(ctx, token_symbol)
+        
+        if market_data:
+            ctx.logger.info(f"💰 Données de marché pour {token_symbol}: ${market_data['price_usd']:.4f} "
+                           f"({market_data['price_change_24h']:+.2f}%)")
+            
+            # Analyser les niveaux techniques
+            technical_levels = await analyze_technical_levels(
+                ctx, token_symbol, 
+                market_data['price_usd'], 
+                market_data['price_change_24h']
+            )
+            
+            # Générer une recommandation intelligente
+            recommendation = await generate_smart_recommendation(
+                ctx, token_symbol, market_data, news_data, technical_levels
+            )
+            
+            if recommendation:
+                # Créer la recommandation pour Simon
+                trading_rec = TradingRecommendation(
+                    token_symbol=token_symbol,
+                    recommendation=recommendation["recommendation"],
+                    confidence=recommendation["confidence"],
+                    reasoning=recommendation["reasoning"],
+                    price_target=recommendation["price_target"],
+                    stop_loss=recommendation["stop_loss"],
+                    news_sentiment=recommendation["news_sentiment"],
+                    timestamp=datetime.now().isoformat()
+                )
+                
+                # Envoyer à Simon
+                await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
+                ctx.logger.info(f"📤 Recommandation avancée envoyée à Simon pour {token_symbol}")
+                
+                return recommendation
+        
+        # Fallback vers l'ancien système si pas de données de marché
+        ctx.logger.warning(f"⚠️ Pas de données de marché pour {token_symbol}, utilisation du fallback")
         
         # Créer un ID unique pour cette demande
         request_id = str(uuid.uuid4())
         
         # Créer un prompt spécialisé pour l'analyse de trading
         trading_prompt = f"""
-        En tant qu'analyste financier expert, analysez les actualités récentes et fournissez une recommandation de trading précise pour {token_symbol}.
+        En tant qu'analyste financier crypto expert, analysez les actualités récentes et fournissez une recommandation de trading précise et détaillée pour {token_symbol}.
         
-        Actualités récentes:
+        Actualités récentes (analysez le sentiment et l'impact):
         {json.dumps(news_data[:5], indent=2) if news_data else "Aucune actualité disponible"}
         
-        Analysez:
-        1. Sentiment général du marché basé sur les actualités
-        2. Impact spécifique sur {token_symbol}
-        3. Tendances techniques et fondamentales
-        4. Niveaux de prix clés (support/résistance)
-        5. Catalyseurs positifs/négatifs identifiés
-        
-        Fournissez une recommandation de trading claire avec:
-        - Action: "buy", "sell", ou "hold"
-        - Niveau de confiance (0.0 à 1.0)
-        - Prix cible si applicable
-        - Stop loss recommandé
-        - Justification basée sur l'analyse
+        ANALYSE REQUISE:
+        1. Sentiment global du marché basé sur les actualités (très positif/positif/neutre/négatif/très négatif)
+        2. Impact spécifique sur {token_symbol} et sa blockchain/écosystème
+        3. Analyse technique: niveaux de support/résistance approximatifs
+        4. Catalyseurs identifiés (partenariats, mises à jour, adoption, régulation)
+        5. Risques et opportunités à court terme
+
+        RECOMMANDATION PRÉCISE:
+        - Action: "buy" (fort potentiel), "sell" (risques élevés), ou "hold" (attendre des signaux)
+        - Confidence: 0.7-0.95 (basée sur la force des signaux)
+        - Prix cible réaliste (si buy/sell) basé sur l'analyse technique
+        - Stop loss recommandé pour gestion du risque
+        - Justification détaillée avec données spécifiques
+
+        IMPORTANT: 
+        - Soyez spécifique et évitez les généralités
+        - Basez vos prix sur l'analyse technique réelle
+        - Variez les recommandations selon le token et les actualités
+        - Confidence élevée (>0.8) seulement si signaux très forts
         
         Répondez UNIQUEMENT au format JSON strict:
         {{
             "recommendation": "buy/sell/hold",
             "confidence": 0.XX,
-            "reasoning": "analyse détaillée basée sur les actualités",
+            "reasoning": "analyse technique détaillée avec prix et catalyseurs spécifiques",
             "price_target": prix_cible_ou_null,
-            "stop_loss": stop_loss_ou_null,
-            "news_sentiment": "positive/negative/neutral",
+            "stop_loss": stop_loss_recommandé,
+            "news_sentiment": "very_positive/positive/neutral/negative/very_negative",
             "timestamp": "{datetime.now().isoformat()}",
-            "request_id": "{request_id}"
+            "request_id": "{request_id}",
+            "technical_levels": {{
+                "support": prix_support,
+                "resistance": prix_resistance
+            }}
         }}
         """
         
@@ -682,15 +927,23 @@ async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str, 
             output_schema={
                 "type": "object",
                 "properties": {
-                    "recommendation": {"type": "string"},
-                    "confidence": {"type": "number"},
-                    "reasoning": {"type": "string"},
+                    "recommendation": {"type": "string", "enum": ["buy", "sell", "hold"]},
+                    "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "reasoning": {"type": "string", "minLength": 50},
                     "price_target": {"type": ["number", "null"]},
-                    "stop_loss": {"type": ["number", "null"]},
-                    "news_sentiment": {"type": "string"},
+                    "stop_loss": {"type": "number"},
+                    "news_sentiment": {"type": "string", "enum": ["very_positive", "positive", "neutral", "negative", "very_negative"]},
                     "timestamp": {"type": "string"},
-                    "request_id": {"type": "string"}
-                }
+                    "request_id": {"type": "string"},
+                    "technical_levels": {
+                        "type": "object",
+                        "properties": {
+                            "support": {"type": "number"},
+                            "resistance": {"type": "number"}
+                        }
+                    }
+                },
+                "required": ["recommendation", "confidence", "reasoning", "stop_loss", "news_sentiment", "request_id"]
             }
         )
         
@@ -730,42 +983,125 @@ async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str, 
                 
                 return analysis
         
-        # Timeout - générer une recommandation de fallback
-        ctx.logger.warning("⏰ Timeout - génération d'une recommandation de fallback")
+        # Timeout - générer une recommandation intelligente de fallback
+        ctx.logger.warning("⏰ Timeout - génération d'une recommandation intelligente")
         
-        # Analyser les actualités localement pour un fallback
+        # Analyser le token pour détecter s'il est connu ou suspect
+        token_lower = token_symbol.lower()
+        
+        # Tokens bien connus et établis
+        major_tokens = ['eth', 'ethereum', 'btc', 'bitcoin', 'usdc', 'usdt', 'bnb', 'ada', 'sol', 'matic', 'avax', 'dot', 'link', 'uni']
+        
+        # Tokens Layer 2 et ecosystème connus  
+        l2_tokens = ['arb', 'arbitrum', 'op', 'optimism', 'matic', 'polygon', 'flow']
+        
+        # Détection de tokens suspects (domaines web, noms étranges)
+        suspicious_patterns = ['.io', '.org', '.com', '.net', 'tron', 'trx', 'rare', 'vanity', 'scam', 'moon', 'safe', 'baby', 'doge', 'shib', 'inu']
+        is_suspicious = any(pattern in token_lower for pattern in suspicious_patterns)
+        
+        # Analyser les actualités localement pour un contexte minimal
         sentiment = "neutral"
+        sentiment_score = 0
         if news_data:
-            # Analyse simple du sentiment basée sur les mots-clés
             all_text = " ".join([str(article.get("title", "")) + " " + str(article.get("content", "")) for article in news_data[:3]])
-            positive_words = ["rise", "bull", "growth", "gain", "increase", "positive", "up"]
-            negative_words = ["fall", "bear", "decline", "loss", "decrease", "negative", "down", "crash"]
+            positive_words = ["rise", "bull", "growth", "gain", "increase", "positive", "up", "rally"]
+            negative_words = ["fall", "bear", "decline", "loss", "decrease", "negative", "down", "crash", "dump"]
             
             positive_count = sum(1 for word in positive_words if word in all_text.lower())
             negative_count = sum(1 for word in negative_words if word in all_text.lower())
+            sentiment_score = positive_count - negative_count
             
-            if positive_count > negative_count:
+            if sentiment_score >= 2:
                 sentiment = "positive"
-            elif negative_count > positive_count:
+            elif sentiment_score <= -2:
                 sentiment = "negative"
         
-        # Recommandation de fallback
+        # Logique de recommandation intelligente
+        if is_suspicious:
+            # Token suspect ou inconnu -> recommandation très prudente
+            action = "hold"
+            confidence = 0.15  # Confiance très faible
+            reasoning = f"⚠️ WARNING: {token_symbol} appears to be an unknown, suspicious, or potentially risky token. " \
+                       f"Domain-like names or meme-token patterns detected. Recommend extreme caution and thorough research " \
+                       f"before any trading activity. Consider established cryptocurrencies instead."
+            price_target = None
+            stop_loss = None
+            
+        elif any(token in token_lower for token in major_tokens):
+            # Token majeur -> recommandation basée sur le sentiment
+            if sentiment == "positive":
+                action = "buy"
+                confidence = 0.78
+                reasoning = f"{token_symbol} is a well-established cryptocurrency with strong fundamentals. " \
+                           f"Current market sentiment appears positive based on recent news analysis. " \
+                           f"Consider dollar-cost averaging with proper risk management."
+                price_target = 100 * 1.12  # Prix symbolique
+                stop_loss = 100 * 0.88
+            elif sentiment == "negative":
+                action = "sell"
+                confidence = 0.72
+                reasoning = f"{token_symbol} showing negative sentiment in recent market analysis. " \
+                           f"Consider taking profits or reducing exposure until sentiment improves. " \
+                           f"Monitor support levels closely."
+                price_target = 100 * 0.92
+                stop_loss = 100 * 1.05
+            else:
+                action = "hold"
+                confidence = 0.68
+                reasoning = f"{token_symbol} is a solid, established cryptocurrency with neutral market sentiment. " \
+                           f"Current conditions suggest waiting for clearer directional signals before major position changes."
+                price_target = None
+                stop_loss = 100 * 0.90
+                
+        elif any(token in token_lower for token in l2_tokens):
+            # Token Layer 2 -> recommandation modérée
+            if sentiment == "positive":
+                action = "buy"
+                confidence = 0.68
+                reasoning = f"{token_symbol} is part of the Layer 2/scaling ecosystem. " \
+                           f"Positive sentiment suggests growth potential as Ethereum scaling gains adoption. " \
+                           f"Monitor ecosystem developments and network metrics."
+            else:
+                action = "hold"  
+                confidence = 0.58
+                reasoning = f"{token_symbol} represents Layer 2 infrastructure. " \
+                           f"Neutral/negative sentiment suggests cautious approach. " \
+                           f"Wait for clearer scaling adoption signals."
+            price_target = None
+            stop_loss = None
+            
+        else:
+            # Token inconnu mais pas suspect -> prudence modérée
+            action = "hold"
+            confidence = 0.25
+            reasoning = f"{token_symbol} is not widely recognized in major cryptocurrency rankings. " \
+                       f"Without sufficient market data, trading history, and news coverage, " \
+                       f"recommend conducting thorough research before any trading decisions. " \
+                       f"Consider market cap, volume, and project fundamentals."
+            price_target = None
+            stop_loss = None
+        
+        # Recommandation de fallback intelligente
         fallback_rec = TradingRecommendation(
             token_symbol=token_symbol,
-            recommendation="hold",
-            confidence=0.6,
-            reasoning=f"Recommandation de fallback basée sur {len(news_data) if news_data else 0} actualités. Sentiment détecté: {sentiment}",
+            recommendation=action,
+            confidence=confidence,
+            reasoning=reasoning,
+            price_target=price_target,
+            stop_loss=stop_loss,
             news_sentiment=sentiment,
             timestamp=datetime.now().isoformat()
         )
         
         await ctx.send(SIMON_AGENT_ADDRESS, fallback_rec)
-        ctx.logger.info(f"📤 Recommandation de fallback envoyée à Simon pour {token_symbol}")
+        ctx.logger.info(f"📤 Recommandation intelligente pour {token_symbol}: {action} ({confidence:.0%}) - {'⚠️ SUSPECT' if is_suspicious else '✅ Analysé'}")
         
         return {
-            "recommendation": "hold",
-            "confidence": 0.6,
-            "reasoning": f"Analyse de fallback - Sentiment: {sentiment}",
+            "recommendation": action,
+            "confidence": confidence,
+            "reasoning": reasoning,
+            "price_target": price_target,
+            "stop_loss": stop_loss,
             "news_sentiment": sentiment
         }
         
@@ -791,19 +1127,63 @@ async def get_recent_news_context(ctx: Context):
 
 @agent.on_rest_post("/trading/recommend", TradingAnalysisRequest, TradingAnalysisAPIResponse)
 async def request_trading_recommendation(ctx: Context, req: TradingAnalysisRequest) -> TradingAnalysisAPIResponse:
-    """Endpoint pour demander une recommandation de trading à Simon"""
+    """Endpoint pour demander une recommandation de trading"""
     
     ctx.logger.info(f"🌐 API Call - Recommandation de trading pour {req.token_symbol}")
     
     try:
-        # Envoyer la recommandation à Simon
+        # Validation du token - accepter tous les tokens maintenant
+        # Les tokens valides sont ceux que l'utilisateur possède dans son wallet
+        if not req.token_symbol or len(req.token_symbol.strip()) == 0:
+            return TradingAnalysisAPIResponse(
+                success=False,
+                message="Le symbole du token est requis",
+                timestamp=datetime.now().isoformat()
+            )
+        
+        ctx.logger.info(f"🎯 Génération de recommandation pour {req.token_symbol} (token du wallet)")
+        
+        # Générer la recommandation
         result = await send_trading_recommendation_to_simon(ctx, req.token_symbol)
         
         if result:
+            # Convertir l'analyse en recommandation pour le front-end
+            action_mapping = {
+                "buy": "ACHETER",
+                "sell": "VENDRE", 
+                "hold": "CONSERVER"
+            }
+            
+            recommendation = TradingRecommendation(
+                token_symbol=req.token_symbol,
+                recommendation=action_mapping.get(result.get("recommendation", "hold"), "CONSERVER"),
+                confidence=result.get("confidence", 0.5),
+                reasoning=result.get("reasoning", "Analyse basée sur les actualités récentes"),
+                price_target=result.get("price_target"),
+                stop_loss=result.get("stop_loss"),
+                news_sentiment=result.get("news_sentiment", "neutral"),
+                timestamp=datetime.now().isoformat()
+            )
+            
             return TradingAnalysisAPIResponse(
                 success=True,
-                message=f"Recommandation de trading envoyée à Simon pour {req.token_symbol}",
-                analysis=result,
+                message=f"Recommandation générée pour {req.token_symbol}",
+                analysis={
+                    "action": recommendation.recommendation,
+                    "confidence": recommendation.confidence,
+                    "reasoning": recommendation.reasoning,
+                    "token": recommendation.token_symbol,
+                    "timestamp": recommendation.timestamp,
+                    "news_sentiment": recommendation.news_sentiment,
+                    "price_target": recommendation.price_target,
+                    "stop_loss": recommendation.stop_loss,
+                    "market_context": result.get("market_context", {
+                        "current_price": result.get("market_data", {}).get("current_price", 0),
+                        "trend": result.get("market_data", {}).get("technical_analysis", {}).get("trend", "unknown"),
+                        "support": result.get("market_data", {}).get("technical_analysis", {}).get("support_level", 0),
+                        "resistance": result.get("market_data", {}).get("technical_analysis", {}).get("resistance_level", 0)
+                    }) if result.get("market_data") else None
+                },
                 timestamp=datetime.now().isoformat()
             )
         else:
@@ -842,5 +1222,439 @@ async def handle_trading_analysis_request(ctx: Context, sender: str, msg: Tradin
         ctx.logger.error(f"❌ Erreur lors du traitement de la demande de Simon: {e}")
 
 
+# Gestionnaire pour confirmer la réception des TradingRecommendation par Simon
+@simon_protocol.on_message(model=TradingRecommendation)
+async def handle_trading_recommendation_confirmation(ctx: Context, sender: str, msg: TradingRecommendation):
+    """Gestionnaire pour confirmer la réception des recommandations de trading par Simon"""
+    ctx.logger.info(f"✅ Confirmation: Recommandation de trading bien reçue par Simon pour {msg.token_symbol}")
+    ctx.logger.info(f"   Action: {msg.recommendation}, Confidence: {msg.confidence:.0%}")
+
+
+# Fonction d'analyse de marché avancée
+async def get_advanced_market_analysis(token_symbol: str) -> dict:
+    """
+    Récupère des données de marché réelles et effectue une analyse technique avancée
+    """
+    try:
+        # Mapping des symboles vers les IDs CoinGecko
+        token_mapping = {
+            'ETH': 'ethereum',
+            'BTC': 'bitcoin',
+            'MATIC': 'matic-network',
+            'USDC': 'usd-coin',
+            'USDT': 'tether',
+            'ARB': 'arbitrum',
+            'OP': 'optimism',
+            'AVAX': 'avalanche-2',
+            'DOT': 'polkadot',
+            'ADA': 'cardano',
+            'SOL': 'solana',
+            'LINK': 'chainlink',
+            'UNI': 'uniswap'
+        }
+        
+        coingecko_id = token_mapping.get(token_symbol.upper(), token_symbol.lower())
+        
+        async with aiohttp.ClientSession() as session:
+            # 1. Prix actuel et données de base
+            base_url = f"https://api.coingecko.com/api/v3/simple/price"
+            base_params = {
+                'ids': coingecko_id,
+                'vs_currencies': 'usd',
+                'include_24hr_change': 'true',
+                'include_24hr_vol': 'true',
+                'include_market_cap': 'true'
+            }
+            
+            async with session.get(base_url, params=base_params) as response:
+                if response.status != 200:
+                    raise Exception(f"CoinGecko API error: {response.status}")
+                basic_data = await response.json()
+            
+            # 2. Données historiques pour l'analyse technique
+            history_url = f"https://api.coingecko.com/api/v3/coins/{coingecko_id}/market_chart"
+            history_params = {
+                'vs_currency': 'usd',
+                'days': '30'  # 30 jours de données
+            }
+            
+            async with session.get(history_url, params=history_params) as response:
+                if response.status != 200:
+                    # Si échec, continuer avec données de base uniquement
+                    history_data = None
+                else:
+                    history_data = await response.json()
+        
+        # Analyser les données de base
+        if coingecko_id not in basic_data:
+            raise Exception(f"Token {token_symbol} not found on CoinGecko")
+        
+        token_data = basic_data[coingecko_id]
+        current_price = token_data['usd']
+        price_change_24h = token_data.get('usd_24h_change', 0)
+        volume_24h = token_data.get('usd_24h_vol', 0)
+        market_cap = token_data.get('usd_market_cap', 0)
+        
+        # Analyse technique si données historiques disponibles
+        technical_analysis = {}
+        if history_data and 'prices' in history_data:
+            prices = [price[1] for price in history_data['prices']]
+            
+            # Support et résistance (niveaux significatifs)
+            support_level = min(prices[-7:])  # Support des 7 derniers jours
+            resistance_level = max(prices[-7:])  # Résistance des 7 derniers jours
+            
+            # Moyennes mobiles
+            ma_7 = statistics.mean(prices[-7:]) if len(prices) >= 7 else current_price
+            ma_14 = statistics.mean(prices[-14:]) if len(prices) >= 14 else current_price
+            ma_30 = statistics.mean(prices) if len(prices) >= 30 else current_price
+            
+            # Volatilité (écart-type des prix)
+            volatility = statistics.stdev(prices[-14:]) if len(prices) >= 14 else 0
+            
+            # Tendance (comparaison des moyennes mobiles)
+            if ma_7 > ma_14 > ma_30:
+                trend = "bullish"
+            elif ma_7 < ma_14 < ma_30:
+                trend = "bearish"
+            else:
+                trend = "sideways"
+            
+            # Position actuelle par rapport aux niveaux
+            position_vs_support = (current_price - support_level) / support_level * 100
+            position_vs_resistance = (resistance_level - current_price) / current_price * 100
+            
+            technical_analysis = {
+                'support_level': round(support_level, 4),
+                'resistance_level': round(resistance_level, 4),
+                'ma_7': round(ma_7, 4),
+                'ma_14': round(ma_14, 4),
+                'ma_30': round(ma_30, 4),
+                'volatility': round(volatility, 4),
+                'trend': trend,
+                'position_vs_support': round(position_vs_support, 2),
+                'position_vs_resistance': round(position_vs_resistance, 2)
+            }
+        
+        # Calculer des prix cibles basés sur l'analyse technique
+        price_targets = calculate_price_targets(current_price, technical_analysis, price_change_24h)
+        
+        return {
+            'current_price': current_price,
+            'price_change_24h': price_change_24h,
+            'volume_24h': volume_24h,
+            'market_cap': market_cap,
+            'technical_analysis': technical_analysis,
+            'price_targets': price_targets,
+            'data_quality': 'high' if history_data else 'basic'
+        }
+        
+    except Exception as e:
+        # Fallback avec des données simulées réalistes
+        return generate_fallback_market_data(token_symbol, str(e))
+
+def calculate_price_targets(current_price: float, technical_analysis: dict, price_change_24h: float) -> dict:
+    """
+    Calcule des prix cibles basés sur l'analyse technique
+    """
+    targets = {}
+    
+    if technical_analysis:
+        support = technical_analysis.get('support_level', current_price * 0.95)
+        resistance = technical_analysis.get('resistance_level', current_price * 1.05)
+        trend = technical_analysis.get('trend', 'sideways')
+        volatility = technical_analysis.get('volatility', current_price * 0.02)
+        
+        # Prix cibles basés sur la tendance et les niveaux techniques
+        if trend == "bullish":
+            # En tendance haussière, viser la résistance + extension
+            targets['buy_target'] = round(current_price * 0.98, 4)  # Légèrement en dessous du prix actuel
+            targets['sell_target'] = round(resistance * 1.02, 4)    # Au-dessus de la résistance
+            targets['stop_loss_buy'] = round(support * 0.98, 4)     # En dessous du support
+            targets['stop_loss_sell'] = round(current_price * 1.05, 4)  # Stop serré pour les ventes
+            
+        elif trend == "bearish":
+            # En tendance baissière, viser le support
+            targets['sell_target'] = round(current_price * 1.02, 4)  # Légèrement au-dessus du prix actuel
+            targets['buy_target'] = round(support * 0.98, 4)         # Près du support
+            targets['stop_loss_sell'] = round(current_price * 0.95, 4)  # Stop serré pour les achats
+            targets['stop_loss_buy'] = round(support * 0.95, 4)      # En dessous du support
+            
+        else:  # sideways
+            # En range, jouer les bornes
+            targets['buy_target'] = round(support * 1.01, 4)         # Près du support
+            targets['sell_target'] = round(resistance * 0.99, 4)     # Près de la résistance
+            targets['stop_loss_buy'] = round(support * 0.97, 4)      # En dessous du support
+            targets['stop_loss_sell'] = round(resistance * 1.03, 4)  # Au-dessus de la résistance
+    
+    else:
+        # Fallback basé sur le prix actuel et le momentum
+        momentum_factor = 1 + (price_change_24h / 100) * 0.5  # Facteur basé sur le mouvement 24h
+        
+        targets['buy_target'] = round(current_price * 0.97, 4)
+        targets['sell_target'] = round(current_price * momentum_factor * 1.05, 4)
+        targets['stop_loss_buy'] = round(current_price * 0.92, 4)
+        targets['stop_loss_sell'] = round(current_price * 1.08, 4)
+    
+    return targets
+
+def generate_fallback_market_data(token_symbol: str, error_msg: str) -> dict:
+    """
+    Génère des données de marché de fallback réalistes
+    """
+    # Prix de base réalistes pour les tokens majeurs
+    base_prices = {
+        'ETH': 3200,
+        'BTC': 65000,
+        'MATIC': 0.85,
+        'USDC': 1.0,
+        'USDT': 1.0,
+        'ARB': 1.2,
+        'OP': 2.5,
+        'AVAX': 35,
+        'DOT': 6.5,
+        'ADA': 0.45,
+        'SOL': 140,
+        'LINK': 15,
+        'UNI': 8
+    }
+    
+    base_price = base_prices.get(token_symbol.upper(), 1.0)
+    
+    return {
+        'current_price': base_price,
+        'price_change_24h': 0,
+        'volume_24h': 0,
+        'market_cap': 0,
+        'technical_analysis': {},
+        'price_targets': {
+            'buy_target': round(base_price * 0.97, 4),
+            'sell_target': round(base_price * 1.05, 4),
+            'stop_loss_buy': round(base_price * 0.92, 4),
+            'stop_loss_sell': round(base_price * 1.08, 4)
+        },
+        'data_quality': 'fallback',
+        'error': error_msg
+    }
+
+async def generate_technical_fallback_recommendation(ctx: Context, token_symbol: str, market_analysis: Dict, news_data: list = None):
+    """
+    Génère une recommandation de fallback basée sur l'analyse technique et le sentiment news
+    """
+    try:
+        ctx.logger.info(f"🔧 Génération de recommandation technique pour {token_symbol}")
+        
+        current_price = market_analysis.get('current_price', 1.0)
+        price_change_24h = market_analysis.get('price_change_24h', 0)
+        technical_analysis = market_analysis.get('technical_analysis', {})
+        price_targets = market_analysis.get('price_targets', {})
+        
+        # Analyser le sentiment des news localement
+        news_sentiment = analyze_news_sentiment(news_data)
+        sentiment_score = get_sentiment_score(news_sentiment)
+        
+        # Déterminer la catégorie du token
+        token_category = categorize_token(token_symbol)
+        
+        # Logique de recommandation basée sur l'analyse technique + sentiment
+        if token_category == "suspicious":
+            # Token suspect -> recommandation très prudente
+            recommendation = {
+                "recommendation": "hold",
+                "confidence": 0.15,
+                "reasoning": f"WARNING: {token_symbol} appears to be a high-risk or unknown token. Current price ${current_price:.4f}. "
+                           f"Extremely low confidence due to limited data and potential risks. "
+                           f"Recommend thorough research and extreme caution before any trading activity.",
+                "price_target": None,
+                "stop_loss": current_price * 0.9,
+                "news_sentiment": "neutral"
+            }
+            
+        elif token_category == "major":
+            # Token majeur -> analyse technique poussée
+            trend = technical_analysis.get('trend', 'sideways')
+            support = technical_analysis.get('support_level', current_price * 0.95)
+            resistance = technical_analysis.get('resistance_level', current_price * 1.05)
+            
+            if sentiment_score > 1 and price_change_24h > 3 and trend == "bullish":
+                # Conditions très bullish
+                recommendation = {
+                    "recommendation": "buy",
+                    "confidence": 0.82,
+                    "reasoning": f"Strong bullish signals for {token_symbol}. Price ${current_price:.4f} with {price_change_24h:.2f}% gain "
+                               f"in uptrend above support ${support:.4f}. Positive news sentiment reinforces technical breakout. "
+                               f"Target resistance level ${resistance:.4f} with strong momentum.",
+                    "price_target": resistance * 1.03,
+                    "stop_loss": support * 0.98,
+                    "news_sentiment": news_sentiment
+                }
+                
+            elif sentiment_score < -1 and price_change_24h < -5 and trend == "bearish":
+                # Conditions très bearish
+                recommendation = {
+                    "recommendation": "sell",
+                    "confidence": 0.78,
+                    "reasoning": f"Strong bearish signals for {token_symbol}. Price ${current_price:.4f} down {abs(price_change_24h):.2f}% "
+                               f"in downtrend below resistance ${resistance:.4f}. Negative news compounds technical weakness. "
+                               f"Target support level ${support:.4f} with selling pressure.",
+                    "price_target": support * 0.97,
+                    "stop_loss": resistance * 1.02,
+                    "news_sentiment": news_sentiment
+                }
+                
+            else:
+                # Conditions neutres ou mixtes
+                action = "buy" if sentiment_score > 0 and price_change_24h > 0 else "hold"
+                conf_base = 0.65 if action == "buy" else 0.58
+                
+                recommendation = {
+                    "recommendation": action,
+                    "confidence": conf_base + (abs(sentiment_score) * 0.05),
+                    "reasoning": f"Mixed signals for established token {token_symbol}. Price ${current_price:.4f} "
+                               f"({'up' if price_change_24h > 0 else 'down'} {abs(price_change_24h):.2f}%) "
+                               f"in {trend} trend between support ${support:.4f} and resistance ${resistance:.4f}. "
+                               f"{'Positive' if sentiment_score > 0 else 'Neutral'} news sentiment suggests "
+                               f"{'cautious accumulation' if action == 'buy' else 'holding current positions'}.",
+                    "price_target": resistance * 0.99 if action == "buy" else None,
+                    "stop_loss": support * 0.98,
+                    "news_sentiment": news_sentiment
+                }
+                
+        elif token_category == "l2":
+            # Token Layer 2 -> analyse modérée
+            recommendation = {
+                "recommendation": "buy" if sentiment_score > 0 and price_change_24h > -2 else "hold",
+                "confidence": 0.68 if sentiment_score > 0 else 0.52,
+                "reasoning": f"Layer 2 ecosystem token {token_symbol} at ${current_price:.4f}. "
+                           f"{'Growing adoption' if sentiment_score > 0 else 'Stable development'} "
+                           f"with {'positive' if sentiment_score > 0 else 'neutral'} market sentiment. "
+                           f"L2 tokens benefit from Ethereum scaling narrative.",
+                "price_target": current_price * 1.08 if sentiment_score > 0 else None,
+                "stop_loss": current_price * 0.92,
+                "news_sentiment": news_sentiment
+            }
+            
+        else:
+            # Token inconnu -> prudence
+            recommendation = {
+                "recommendation": "hold",
+                "confidence": 0.35,
+                "reasoning": f"Unknown token {token_symbol} at ${current_price:.4f}. "
+                           f"Limited market data and news coverage. "
+                           f"Recommend thorough research before trading. "
+                           f"Current sentiment: {news_sentiment}.",
+                "price_target": None,
+                "stop_loss": current_price * 0.88,
+                "news_sentiment": news_sentiment
+            }
+        
+        # Créer et envoyer la recommandation à Simon
+        trading_rec = TradingRecommendation(
+            token_symbol=token_symbol,
+            recommendation=recommendation["recommendation"],
+            confidence=recommendation["confidence"],
+            reasoning=recommendation["reasoning"],
+            price_target=recommendation["price_target"],
+            stop_loss=recommendation["stop_loss"],
+            news_sentiment=recommendation["news_sentiment"],
+            timestamp=datetime.now().isoformat()
+        )
+        
+        await ctx.send(SIMON_AGENT_ADDRESS, trading_rec)
+        ctx.logger.info(f"📤 Recommandation technique envoyée pour {token_symbol}: {recommendation['recommendation'].upper()} ({recommendation['confidence']:.0%})")
+        
+        return recommendation
+        
+    except Exception as e:
+        ctx.logger.error(f"❌ Erreur lors de la génération de recommandation technique: {e}")
+        return {
+            "recommendation": "hold",
+            "confidence": 0.3,
+            "reasoning": f"Error in analysis for {token_symbol}: {str(e)}",
+            "price_target": None,
+            "stop_loss": current_price * 0.9 if 'current_price' in locals() else None,
+            "news_sentiment": "neutral"
+        }
+
+def analyze_news_sentiment(news_data: list) -> str:
+    """Analyse le sentiment des actualités"""
+    if not news_data:
+        return "neutral"
+    
+    # Mots-clés positifs et négatifs
+    positive_words = [
+        "bull", "bullish", "rise", "gain", "pump", "moon", "growth", "surge", "rally", 
+        "breakthrough", "adoption", "partnership", "upgrade", "innovation", "positive",
+        "up", "high", "strong", "optimistic", "buy", "invest", "accumulate"
+    ]
+    
+    negative_words = [
+        "bear", "bearish", "fall", "loss", "dump", "crash", "decline", "drop", "sell",
+        "weakness", "concern", "risk", "fear", "panic", "negative", "down", "low",
+        "uncertain", "volatile", "correction", "pullback", "resistance"
+    ]
+    
+    neutral_words = [
+        "stable", "sideways", "range", "consolidation", "wait", "watch", "monitor",
+        "unchanged", "flat", "pause", "consolidate"
+    ]
+    
+    # Analyser le texte combiné
+    all_text = " ".join([
+        str(article.get("title", "")) + " " + str(article.get("content", ""))
+        for article in news_data[:5]
+    ]).lower()
+    
+    positive_count = sum(1 for word in positive_words if word in all_text)
+    negative_count = sum(1 for word in negative_words if word in all_text)
+    neutral_count = sum(1 for word in neutral_words if word in all_text)
+    
+    # Déterminer le sentiment dominant
+    if positive_count > negative_count + neutral_count:
+        return "very_positive" if positive_count > negative_count * 2 else "positive"
+    elif negative_count > positive_count + neutral_count:
+        return "very_negative" if negative_count > positive_count * 2 else "negative"
+    else:
+        return "neutral"
+
+def get_sentiment_score(sentiment: str) -> int:
+    """Convertit le sentiment en score numérique"""
+    sentiment_scores = {
+        "very_positive": 3,
+        "positive": 1,
+        "neutral": 0,
+        "negative": -1,
+        "very_negative": -3
+    }
+    return sentiment_scores.get(sentiment, 0)
+
+def categorize_token(token_symbol: str) -> str:
+    """Catégorise le token selon sa réputation et son écosystème"""
+    token_lower = token_symbol.lower()
+    
+    # Tokens majeurs bien établis
+    major_tokens = ['eth', 'ethereum', 'btc', 'bitcoin', 'usdc', 'usdt', 'bnb', 'ada', 'sol', 'matic', 'avax', 'dot', 'link', 'uni']
+    
+    # Tokens Layer 2 et écosystème
+    l2_tokens = ['arb', 'arbitrum', 'op', 'optimism', 'polygon', 'base']
+    
+    # Patterns suspects
+    suspicious_patterns = ['.io', '.org', '.com', 'tron', 'trx', 'rare', 'vanity', 'scam', 'moon', 'safe', 'baby', 'doge', 'shib']
+    
+    if any(pattern in token_lower for pattern in suspicious_patterns):
+        return "suspicious"
+    elif any(token in token_lower for token in major_tokens):
+        return "major"
+    elif any(token in token_lower for token in l2_tokens):
+        return "l2"
+    else:
+        return "unknown"
+
 if __name__ == "__main__":
+    logger.info("🔄 Démarrage de l'agent Intellect...")
+    logger.info(f"🌐 Endpoints disponibles:")
+    logger.info(f"   POST http://localhost:8000/trading/recommend  🆕")
+    logger.info(f"   GET http://localhost:8000/health - Santé de l'agent")
+    logger.info(f"🤖 Communication avec Simon Agent: {SIMON_AGENT_ADDRESS}")
+    
     agent.run()

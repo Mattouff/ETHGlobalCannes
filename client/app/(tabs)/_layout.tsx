@@ -57,6 +57,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="trading"
+        options={{
+          title: "Trading",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="chart.line.uptrend.xyaxis" color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

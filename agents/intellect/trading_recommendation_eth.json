@@ -1,0 +1,12 @@
+{
+  "token_symbol": "ETH",
+  "action": "hold",
+  "confidence": 0.68,
+  "confidence_level": "MEDIUM",
+  "reasoning": "ETH is a solid, established cryptocurrency with neutral market sentiment. Current conditions suggest waiting for clearer directional signals before major position changes.",
+  "news_sentiment": "neutral",
+  "price_target": null,
+  "stop_loss": 90.0,
+  "timestamp": "2025-07-06T00:58:46.829569",
+  "received_at": "2025-07-06T00:58:47.080438"
+}

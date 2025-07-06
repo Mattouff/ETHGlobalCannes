@@ -1,0 +1,12 @@
+{
+  "token_symbol": "RareTron.io",
+  "action": "hold",
+  "confidence": 0.15,
+  "confidence_level": "HIGH",
+  "reasoning": "⚠️ WARNING: RareTron.io appears to be an unknown, suspicious, or potentially risky token. Domain-like names or meme-token patterns detected. Recommend extreme caution and thorough research before any trading activity. Consider established cryptocurrencies instead.",
+  "news_sentiment": "neutral",
+  "price_target": null,
+  "stop_loss": null,
+  "timestamp": "2025-07-06T00:59:03.191645",
+  "received_at": "2025-07-06T00:59:03.357806"
+}
