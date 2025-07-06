@@ -21,9 +21,9 @@ try:
         chat_protocol_spec
     )
     CHAT_PROTOCOL_AVAILABLE = True
-    print("✅ Protocole de chat officiel Fetch.ai chargé")
+    print("✅ Official Fetch.ai chat protocol loaded")
 except ImportError:
-    print("⚠️ Protocole de chat officiel non disponible, utilisation du protocole custom")
+    print("⚠️ Official chat protocol not available, using custom protocol")
     CHAT_PROTOCOL_AVAILABLE = False
 
 # Configuration du logging
@@ -232,7 +232,7 @@ AGENT_METADATA = {
 async def register_with_asi_one_network(ctx: Context):
     """Enregistre l'agent dans le réseau ASI ONE"""
     try:
-        ctx.logger.info("🔗 Enregistrement dans le réseau ASI ONE...")
+        ctx.logger.info("🔗 Registering with ASI ONE network...")
         
         # Données d'enregistrement pour ASI ONE
         registration_payload = {
@@ -253,11 +253,11 @@ async def register_with_asi_one_network(ctx: Context):
             "health_endpoint": "/health"
         }
         
-        ctx.logger.info("✅ Agent accessible publiquement via ngrok!")
+        ctx.logger.info("✅ Agent publicly accessible via ngrok!")
         ctx.logger.info(f"🎯 Agent ID: {ctx.agent.address}")
         
     except Exception as e:
-        ctx.logger.error(f"❌ Échec de l'enregistrement dans le réseau ASI ONE: {e}")
+        ctx.logger.error(f"❌ Failed to register with ASI ONE network: {e}")
         raise e
 # Endpoint de découverte pour ASI ONE
 @agent.on_rest_get("/asi-one/metadata", ASIOneMetadataResponse)
@@ -297,11 +297,11 @@ async def process_chat_text(ctx: Context, text: str, sender: str) -> str:
         elif any(word in text_lower for word in ["aide", "help", "commands", "commandes"]):
             return get_help_text()
         else:
-            return f"Bonjour ! Je suis IntentFi Agent, votre assistant pour les stratégies crypto et les intents financiers. Votre message: '{text}'. Comment puis-je vous aider avec vos investissements ?"
+            return f"Hello! I am IntentFi Agent, your assistant for crypto strategies and financial intents. Your message: '{text}'. How can I assist you with your investments?"
             
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors du traitement du texte: {e}")
-        return f"Désolé, une erreur s'est produite lors du traitement de votre message. Veuillez réessayer."
+        ctx.logger.error(f"❌ Error processing text: {e}")
+        return f"Sorry, an error occurred while processing your message. Please try again."
 
 async def generate_intent_response_text(ctx: Context, text: str, sender: str) -> str:
     """Génère une réponse texte pour une demande d'intent"""
@@ -328,21 +328,21 @@ async def generate_intent_response_text(ctx: Context, text: str, sender: str) ->
         recommendation = await generate_intent_recommendation(ctx, intent_request)
         
         # Formater la réponse
-        response = f"🎯 Recommandation d'intent basée sur votre message:\n\n"
+        response = f"🎯 Intent recommendation based on your message:\n\n"
         response += f"**Type**: {recommendation.get('type', 'N/A')}\n"
         if 'condition' in recommendation:
             response += f"**Condition**: {recommendation['condition']}\n"
         if 'action' in recommendation:
             response += f"**Action**: {recommendation['action']}\n"
         if 'confidence' in recommendation:
-            response += f"**Confiance**: {recommendation['confidence']:.0%}\n"
-        response += f"\n**Analyse**: {recommendation.get('reasoning', 'N/A')}"
+            response += f"**Confidence**: {recommendation['confidence']:.0%}\n"
+        response += f"\n**Analysis**: {recommendation.get('reasoning', 'N/A')}"
         
         return response
         
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur génération intent: {e}")
-        return "Désolé, je n'ai pas pu générer de recommandation d'intent pour le moment."
+        ctx.logger.error(f"❌ Error generating intent response: {e}")
+        return "Sorry, I was unable to generate an intent recommendation at the moment."
 
 async def generate_trading_response_text(ctx: Context, text: str, sender: str) -> str:
     """Génère une réponse texte pour une demande de trading"""
@@ -360,41 +360,41 @@ async def generate_trading_response_text(ctx: Context, text: str, sender: str) -
         analysis = await send_trading_recommendation_to_simon(ctx, token_symbol)
         
         # Formater la réponse
-        response = f"📊 Analyse trading pour {token_symbol}:\n\n"
-        response += f"**Recommandation**: {analysis.get('recommendation', 'N/A').upper()}\n"
-        response += f"**Confiance**: {analysis.get('confidence', 0):.0%}\n"
+        response = f"📊 Trading analysis for {token_symbol}:\n\n"
+        response += f"**Recommendation**: {analysis.get('recommendation', 'N/A').upper()}\n"
+        response += f"**Confidence**: {analysis.get('confidence', 0):.0%}\n"
         if analysis.get('price_target'):
-            response += f"**Objectif de prix**: ${analysis['price_target']:.4f}\n"
+            response += f"**Price target**: ${analysis['price_target']:.4f}\n"
         if analysis.get('stop_loss'):
             response += f"**Stop loss**: ${analysis['stop_loss']:.4f}\n"
         response += f"**Sentiment**: {analysis.get('news_sentiment', 'N/A')}\n"
-        response += f"\n**Analyse**: {analysis.get('reasoning', 'N/A')}"
+        response += f"\n**Analysis**: {analysis.get('reasoning', 'N/A')}"
         
         return response
         
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur analyse trading: {e}")
-        return f"Désolé, je n'ai pas pu analyser {token_symbol} pour le moment."
+        ctx.logger.error(f"❌ Error analyzing trading: {e}")
+        return f"Sorry, I was unable to analyze {token_symbol} at the moment."
 
 def get_help_text() -> str:
     """Retourne le texte d'aide"""
-    return """🤖 **IntentFi Agent - Commandes disponibles:**
+    return """🤖 **IntentFi Agent - Available commands:**
 
 📋 **Intents:**
-• "Recommande-moi un intent pour ETH" 
-• "Crée une stratégie DCA"
-• "Intent de gestion des risques"
+• "Recommend an intent for ETH" 
+• "Create a DCA strategy"
+• "Risk management intent"
 
 📊 **Trading:**
-• "Analyse ETH" / "Trading ETH"
-• "Acheter ou vendre BTC?"
-• "Analyse de marché pour [TOKEN]"
+• "Analyze ETH" / "Trading ETH"
+• "Buy or sell BTC?"
+• "Market analysis for [TOKEN]"
 
 💬 **Conversation:**
-• Posez vos questions en langage naturel
-• L'agent peut analyser et recommander
+• Ask your questions in natural language
+• The agent can analyze and recommend
 
-🚀 Tapez simplement votre question et je vous aiderai!"""
+🚀 Just type your question and I will assist you!"""
 
 # Handlers pour compatibilité avec le protocole officiel uniquement
 
@@ -406,8 +406,8 @@ async def handle_chat_intent_request(ctx: Context, sender: str, msg: ChatMessage
         intent_data = msg.metadata
         
         if not intent_data:
-            ctx.logger.warning("⚠️ Demande d'intent sans métadonnées")
-            await send_chat_error(ctx, sender, msg.message_id, "Paramètres d'intent manquants")
+            ctx.logger.warning("⚠️ Intent request without metadata")
+            await send_chat_error(ctx, sender, msg.message_id, "Missing intent parameters")
             return
         
         # Créer une IntentRequest à partir des données du chat
@@ -417,7 +417,7 @@ async def handle_chat_intent_request(ctx: Context, sender: str, msg: ChatMessage
             parameters=intent_data.get("parameters", {})
         )
         
-        ctx.logger.info(f"🎯 Traitement d'une demande d'intent via chat: {intent_request.intent_type}")
+        ctx.logger.info(f"🎯 Processing an intent request via chat: {intent_request.intent_type}")
         
         # Générer la recommandation
         recommendation = await generate_intent_recommendation(ctx, intent_request)
@@ -429,7 +429,7 @@ async def handle_chat_intent_request(ctx: Context, sender: str, msg: ChatMessage
             sender_id=ctx.agent.address,
             recipient_id=sender,
             response_type=MessageType.INTENT_REQUEST,
-            content=f"Recommandation d'intent générée: {recommendation.get('type', 'N/A')}",
+            content=f"Intent recommendation generated: {recommendation.get('type', 'N/A')}",
             metadata={
                 "recommendation": recommendation,
                 "success": True
@@ -438,11 +438,11 @@ async def handle_chat_intent_request(ctx: Context, sender: str, msg: ChatMessage
         )
         
         await ctx.send(sender, response)
-        ctx.logger.info(f"📤 Recommandation d'intent envoyée via chat à {sender}")
+        ctx.logger.info(f"📤 Intent recommendation sent via chat to {sender}")
         
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors du traitement de l'intent via chat: {e}")
-        await send_chat_error(ctx, sender, msg.message_id, f"Erreur: {str(e)}")
+        ctx.logger.error(f"❌ Error processing intent via chat: {e}")
+        await send_chat_error(ctx, sender, msg.message_id, f"Error: {str(e)}")
 
 
 async def handle_chat_trading_request(ctx: Context, sender: str, msg: ChatMessage):
@@ -452,7 +452,7 @@ async def handle_chat_trading_request(ctx: Context, sender: str, msg: ChatMessag
         trading_data = msg.metadata
         token_symbol = trading_data.get("token_symbol", "ETH")
         
-        ctx.logger.info(f"📊 Traitement d'une demande d'analyse trading via chat: {token_symbol}")
+        ctx.logger.info(f"📊 Processing a trading analysis request via chat: {token_symbol}")
         
         # Générer l'analyse trading
         analysis = await send_trading_recommendation_to_simon(ctx, token_symbol)
@@ -464,7 +464,7 @@ async def handle_chat_trading_request(ctx: Context, sender: str, msg: ChatMessag
             sender_id=ctx.agent.address,
             recipient_id=sender,
             response_type=MessageType.TRADING_ANALYSIS,
-            content=f"Analyse trading pour {token_symbol}: {analysis.get('recommendation', 'N/A')} (confiance: {analysis.get('confidence', 0):.0%})",
+            content=f"Trading analysis for {token_symbol}: {analysis.get('recommendation', 'N/A')} (confidence: {analysis.get('confidence', 0):.0%})",
             metadata={
                 "analysis": analysis,
                 "token_symbol": token_symbol,
@@ -474,11 +474,11 @@ async def handle_chat_trading_request(ctx: Context, sender: str, msg: ChatMessag
         )
         
         await ctx.send(sender, response)
-        ctx.logger.info(f"📤 Analyse trading envoyée via chat à {sender}")
+        ctx.logger.info(f"📤 Trading analysis sent via chat to {sender}")
         
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors de l'analyse trading via chat: {e}")
-        await send_chat_error(ctx, sender, msg.message_id, f"Erreur: {str(e)}")
+        ctx.logger.error(f"❌ Error analyzing trading via chat: {e}")
+        await send_chat_error(ctx, sender, msg.message_id, f"Error: {str(e)}")
 
 
 async def handle_chat_text_message(ctx: Context, sender: str, msg: ChatMessage):
@@ -501,8 +501,8 @@ async def handle_chat_text_message(ctx: Context, sender: str, msg: ChatMessage):
             await handle_general_conversation(ctx, sender, msg)
             
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors du traitement du message texte: {e}")
-        await send_chat_error(ctx, sender, msg.message_id, f"Erreur: {str(e)}")
+        ctx.logger.error(f"❌ Error processing text message: {e}")
+        await send_chat_error(ctx, sender, msg.message_id, f"Error: {str(e)}")
 
 
 async def handle_chat_intent_from_text(ctx: Context, sender: str, msg: ChatMessage):
@@ -529,15 +529,15 @@ async def handle_chat_intent_from_text(ctx: Context, sender: str, msg: ChatMessa
     recommendation = await generate_intent_recommendation(ctx, intent_request)
     
     # Formater la réponse de manière conversationnelle
-    response_text = f"Basé sur votre message, voici ma recommandation d'intent:\n\n"
+    response_text = f"Based on your message, here is my intent recommendation:\n\n"
     response_text += f"🎯 Type: {recommendation.get('type', 'N/A')}\n"
     if 'condition' in recommendation:
         response_text += f"⚡ Condition: {recommendation['condition']}\n"
     if 'action' in recommendation:
         response_text += f"🚀 Action: {recommendation['action']}\n"
     if 'confidence' in recommendation:
-        response_text += f"💪 Confiance: {recommendation['confidence']:.0%}\n"
-    response_text += f"\n🧠 Raisonnement: {recommendation.get('reasoning', 'N/A')}"
+        response_text += f"💪 Confidence: {recommendation['confidence']:.0%}\n"
+    response_text += f"\n🧠 Reasoning: {recommendation.get('reasoning', 'N/A')}"
     
     response = ChatResponse(
         message_id=str(uuid.uuid4()),
@@ -568,15 +568,15 @@ async def handle_chat_trading_from_text(ctx: Context, sender: str, msg: ChatMess
     analysis = await send_trading_recommendation_to_simon(ctx, token_symbol)
     
     # Formater la réponse de manière conversationnelle
-    response_text = f"Voici mon analyse trading pour {token_symbol}:\n\n"
-    response_text += f"📊 Recommandation: {analysis.get('recommendation', 'N/A').upper()}\n"
-    response_text += f"💪 Confiance: {analysis.get('confidence', 0):.0%}\n"
+    response_text = f"Here is my trading analysis for {token_symbol}:\n\n"
+    response_text += f"📊 Recommendation: {analysis.get('recommendation', 'N/A').upper()}\n"
+    response_text += f"💪 Confidence: {analysis.get('confidence', 0):.0%}\n"
     if analysis.get('price_target'):
-        response_text += f"🎯 Objectif de prix: ${analysis['price_target']:.4f}\n"
+        response_text += f"🎯 Price target: ${analysis['price_target']:.4f}\n"
     if analysis.get('stop_loss'):
         response_text += f"🛡️ Stop loss: ${analysis['stop_loss']:.4f}\n"
     response_text += f"📰 Sentiment: {analysis.get('news_sentiment', 'N/A')}\n"
-    response_text += f"\n🧠 Analyse: {analysis.get('reasoning', 'N/A')}"
+    response_text += f"\n🧠 Analysis: {analysis.get('reasoning', 'N/A')}"
     
     response = ChatResponse(
         message_id=str(uuid.uuid4()),
@@ -594,28 +594,28 @@ async def handle_chat_trading_from_text(ctx: Context, sender: str, msg: ChatMess
 
 async def send_chat_help(ctx: Context, sender: str, original_message_id: str):
     """Envoie les commandes d'aide via chat"""
-    help_text = """🤖 IntentFi Agent - Commandes disponibles:
+    help_text = """🤖 IntentFi Agent - Available commands:
 
-📋 **Commandes d'Intent:**
-• "Recommande-moi un intent pour ETH" 
-• "Crée une stratégie DCA"
-• "Intent de gestion des risques"
+📋 **Intent Commands:**
+• "Recommend an intent for ETH" 
+• "Create a DCA strategy"
+• "Risk management intent"
 
-📊 **Commandes de Trading:**
-• "Analyse ETH" / "Trading ETH"
-• "Acheter ou vendre BTC?"
-• "Analyse de marché pour [TOKEN]"
+📊 **Trading Commands:**
+• "Analyze ETH" / "Trading ETH"
+• "Buy or sell BTC?"
+• "Market analysis for [TOKEN]"
 
-💬 **Conversation générale:**
-• Posez vos questions en langage naturel
-• L'agent peut analyser et recommander
+💬 **General Conversation:**
+• Ask your questions in natural language
+• The agent can analyze and recommend
 
-🔧 **Formats supportés:**
-• Messages texte naturels
-• Demandes structurées avec métadonnées
-• Commandes directes
+🔧 **Supported Formats:**
+• Natural text messages
+• Structured requests with metadata
+• Direct commands
 
-Tapez simplement votre question et l'agent vous aidera! 🚀"""
+Just type your question and the agent will assist you! 🚀"""
 
     response = ChatResponse(
         message_id=str(uuid.uuid4()),
@@ -635,16 +635,16 @@ async def handle_general_conversation(ctx: Context, sender: str, msg: ChatMessag
     """Traite une conversation générale en utilisant Claude AI"""
     try:
         # Créer un prompt conversationnel pour Claude
-        conversation_prompt = f"""Tu es IntentFi Agent, un assistant IA spécialisé dans les stratégies d'investissement crypto et les intents financiers.
+        conversation_prompt = f"""You are IntentFi Agent, an AI assistant specialized in crypto investment strategies and financial intents.
 
-Message de l'utilisateur: "{msg.content}"
+User message: "{msg.content}"
 
-Réponds de manière conversationnelle et utile. Si la question concerne:
-- Les crypto/trading: propose une analyse ou recommandation
-- Les intents: explique les options disponibles  
-- Autre: réponds naturellement en restant dans ton domaine d'expertise
+Respond in a conversational and helpful manner. If the question is about:
+- Crypto/trading: provide an analysis or recommendation
+- Intents: explain the available options  
+- Other: respond naturally while staying within your area of expertise
 
-Garde un ton amical et professionnel. Limite à 200 mots maximum."""
+Maintain a friendly and professional tone. Limit to 200 words maximum."""
 
         # Envoyer à Claude AI
         request_id = str(uuid.uuid4())
@@ -671,9 +671,9 @@ Garde un ton amical et professionnel. Limite à 200 mots maximum."""
         
         try:
             await ctx.send(AI_AGENT_ADDRESS, prompt)
-            ctx.logger.info(f"🧠 Conversation générale envoyée à Claude AI pour {sender}")
+            ctx.logger.info(f"🧠 General conversation sent to Claude AI for {sender}")
         except Exception as e:
-            ctx.logger.error(f"❌ Erreur lors de l'envoi à Claude AI: {e}")
+            ctx.logger.error(f"❌ Error sending to Claude AI: {e}")
             # Envoyer directement une réponse par défaut en cas d'erreur
             fallback_response = ChatResponse(
                 message_id=str(uuid.uuid4()),
@@ -681,7 +681,7 @@ Garde un ton amical et professionnel. Limite à 200 mots maximum."""
                 sender_id=ctx.agent.address,
                 recipient_id=sender,
                 response_type=MessageType.TEXT,
-                content="Je suis IntentFi Agent, votre assistant pour les stratégies crypto et les intents financiers. Comment puis-je vous aider avec vos investissements aujourd'hui? (Mode dégradé - Claude AI temporairement indisponible)",
+                content="I am IntentFi Agent, your assistant for crypto strategies and financial intents. How can I assist you with your investments today? (Fallback mode - Claude AI temporarily unavailable)",
                 metadata={"type": "error_fallback"},
                 timestamp=datetime.now().isoformat()
             )
@@ -697,9 +697,9 @@ Garde un ton amical et professionnel. Limite à 200 mots maximum."""
                 else:
                     # Fallback custom
                     await ctx.send(sender, fallback_response)
-                ctx.logger.info(f"📤 Réponse de fallback envoyée à {sender}")
+                ctx.logger.info(f"📤 Fallback response sent to {sender}")
             except Exception as e2:
-                ctx.logger.error(f"❌ Erreur lors de l'envoi de la réponse de fallback: {e2}")
+                ctx.logger.error(f"❌ Error sending fallback response: {e2}")
             
             # Nettoyer la demande pending
             if request_id in pending_requests:
@@ -716,7 +716,7 @@ Garde un ton amical et professionnel. Limite à 200 mots maximum."""
                 sender_id=ctx.agent.address,
                 recipient_id=sender,
                 response_type=MessageType.TEXT,
-                content="Je suis IntentFi Agent, votre assistant pour les stratégies crypto et les intents financiers. Comment puis-je vous aider avec vos investissements aujourd'hui?",
+                content="I am IntentFi Agent, your assistant for crypto strategies and financial intents. How can I assist you with your investments today?",
                 metadata={"type": "fallback"},
                 timestamp=datetime.now().isoformat()
             )
@@ -725,8 +725,8 @@ Garde un ton amical et professionnel. Limite à 200 mots maximum."""
             del pending_requests[request_id]
             
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur conversation générale: {e}")
-        await send_chat_error(ctx, sender, msg.message_id, f"Erreur de conversation: {str(e)}")
+        ctx.logger.error(f"❌ Error in general conversation: {e}")
+        await send_chat_error(ctx, sender, msg.message_id, f"Conversation error: {str(e)}")
 
 
 async def send_chat_error(ctx: Context, sender: str, original_message_id: str, error_message: str):
@@ -737,7 +737,7 @@ async def send_chat_error(ctx: Context, sender: str, original_message_id: str, e
         sender_id=ctx.agent.address,
         recipient_id=sender,
         response_type=MessageType.ERROR,
-        content=f"❌ Erreur: {error_message}",
+        content=f"❌ Error: {error_message}",
         metadata={"error": True},
         timestamp=datetime.now().isoformat()
     )
@@ -749,7 +749,7 @@ async def send_chat_error(ctx: Context, sender: str, original_message_id: str, e
 async def handle_intent_request(ctx: Context, sender: str, msg: IntentRequest):
     """Traite les demandes d'intent et génère des recommandations"""
     
-    ctx.logger.info(f"📥 Nouvelle demande d'intent de {sender}")
+    ctx.logger.info(f"📥 New intent request from {sender}")
     ctx.logger.info(f"User: {msg.user_id}, Type: {msg.intent_type}")
     
     # Générer une recommandation basée sur le type d'intent
@@ -759,11 +759,11 @@ async def handle_intent_request(ctx: Context, sender: str, msg: IntentRequest):
     response = IntentResponse(
         success=True,
         recommendation=recommendation,
-        message="Recommandation générée avec succès"
+        message="Recommendation successfully generated"
     )
     
     await ctx.send(sender, response)
-    ctx.logger.info(f"📤 Recommandation envoyée à {sender}")
+    ctx.logger.info(f"📤 Recommendation sent to {sender}")
 
 # Variables globales pour stocker les réponses de l'AI agent
 pending_requests = {}
@@ -920,7 +920,7 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
             output_schema=intent_schema
         )
         
-        ctx.logger.info(f"🧠 Envoi du prompt financier à Claude AI pour {request.user_id}")
+        ctx.logger.info(f"🧠 Sending financial prompt to Claude AI for {request.user_id}")
         ctx.logger.info(f"📤 Request ID: {request_id}")
         
         pending_requests[request_id] = {
@@ -931,19 +931,19 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
         
         try:
             await ctx.send(AI_AGENT_ADDRESS, prompt)
-            ctx.logger.info("✅ Prompt envoyé avec succès à Claude AI")
+            ctx.logger.info("✅ Prompt sent to Claude AI")
         except Exception as e:
-            ctx.logger.error(f"❌ Erreur lors de l'envoi à Claude AI: {e}")
+            ctx.logger.error(f"❌ Error sending to Claude AI: {e}")
             # Nettoyer la demande pending et retourner une erreur
             if request_id in pending_requests:
                 del pending_requests[request_id]
             return TradingAnalysisAPIResponse(
                 success=False,
-                message=f"Erreur de communication avec Claude AI: {str(e)}",
+                message=f"Error communicating with Claude AI: {str(e)}",
                 timestamp=datetime.now().isoformat()
             )
         
-        ctx.logger.info("⏳ En attente de la réponse de Claude AI (45s max avec retry)...")
+        ctx.logger.info("⏳ Waiting for Claude AI response (45s max with retry)...")
         ctx.logger.info(f"🔍 Debug - AI_AGENT_ADDRESS: {AI_AGENT_ADDRESS}")
         
         import asyncio
@@ -954,14 +954,14 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
         
         for retry_attempt in range(max_retries):
             current_timeout = base_timeout * (2 ** retry_attempt)  # 15s, 30s, 60s
-            ctx.logger.info(f"🔄 Tentative {retry_attempt + 1}/{max_retries} - timeout: {current_timeout}s")
+            ctx.logger.info(f"🔄 Attempt {retry_attempt + 1}/{max_retries} - timeout: {current_timeout}s")
             
             # Attendre la réponse avec timeout étendu
             for attempt in range(current_timeout):
                 await asyncio.sleep(1)
                 
                 if request_id in ai_responses:
-                    ctx.logger.info(f"✅ Réponse reçue de Claude AI après {retry_attempt + 1} tentative(s)!")
+                    ctx.logger.info(f"✅ Response received from Claude AI after {retry_attempt + 1} attempt(s)!")
                     response = ai_responses[request_id]
                     
                     # Nettoyer les variables
@@ -973,18 +973,18 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
             
             # Si pas de réponse, retry (sauf dernière tentative)
             if retry_attempt < max_retries - 1:
-                ctx.logger.warning(f"⏰ Timeout tentative {retry_attempt + 1} - retry dans 3s...")
+                ctx.logger.warning(f"⏰ Timeout attempt {retry_attempt + 1} - retry in 3s...")
                 await asyncio.sleep(3)
                 
                 # Renvoyer la requête pour retry
                 try:
                     await ctx.send(AI_AGENT_ADDRESS, prompt)
-                    ctx.logger.info(f"🔄 Requête renvoyée (retry {retry_attempt + 2})")
+                    ctx.logger.info(f"🔄 Request resent (retry {retry_attempt + 2})")
                 except Exception as retry_error:
-                    ctx.logger.error(f"❌ Erreur lors du retry: {retry_error}")
+                    ctx.logger.error(f"❌ Error during retry: {retry_error}")
         
         # Timeout final après tous les retries
-        ctx.logger.warning("⏰ Timeout final - Claude AI ne répond pas après 3 tentatives, retour d'une recommandation par défaut")
+        ctx.logger.warning("⏰ Final timeout - Claude AI did not respond after 3 attempts, returning default recommendation")
         
         return {
             "type": "hold_position",
@@ -996,11 +996,11 @@ async def generate_intent_recommendation(ctx: Context, request: IntentRequest):
         }
             
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors de l'envoi à Claude AI: {e}")
+        ctx.logger.error(f"❌ Error sending to Claude AI: {e}")
         return {
             "type": "error",
-            "reasoning": f"Erreur lors de la communication avec Claude AI: {str(e)}",
-            "suggested_action": "Réessayer la requête"
+            "reasoning": f"Error communicating with Claude AI: {str(e)}",
+            "suggested_action": "Retry the request"
         }
 
 
@@ -1034,7 +1034,7 @@ async def recommend_intent(ctx: Context, req: IntentRequest) -> IntentResponse:
         return IntentResponse(
             success=False,
             recommendation={},
-            message=f"Erreur: {str(e)}"
+            message=f"Error: {str(e)}"
         )
 
 
@@ -1256,19 +1256,19 @@ async def send_message(ctx: Context):
 
 @agent.on_message(TextResponse)
 async def handle_text_response(ctx: Context, sender: str, msg: TextResponse):
-    ctx.logger.info(f"📥 Réponse texte IA de ...{sender[-8:]}: {msg.text}")
+    ctx.logger.info(f"📥 AI text response from ...{sender[-8:]}: {msg.text}")
     
     # Vérifier si c'est une réponse au test de connectivité
     if "Connected" in msg.text or "connectivity test" in msg.text.lower():
-        ctx.logger.info("✅ Test de connectivité réussi avec l'AI Agent!")
+        ctx.logger.info("✅ Connectivity test successful with AI Agent!")
     elif "Hello" in msg.text or "test" in msg.text.lower():
-        ctx.logger.info("✅ Communication établie avec l'AI Agent!")
+        ctx.logger.info("✅ Communication established with AI Agent!")
 
 
 @agent.on_message(StructuredOutputResponse)  
 async def handle_structured_response(ctx: Context, sender: str, msg: StructuredOutputResponse):
     """Traite les réponses structurées de Claude AI pour les recommandations d'intents"""
-    ctx.logger.info(f"📥 Réponse Claude AI reçue de ...{sender[-8:]}:")
+    ctx.logger.info(f"📥 Response Claude AI received from ...{sender[-8:]}:")
     ctx.logger.info(f"🔍 Données: {msg.output}")
     
     try:
@@ -1329,13 +1329,13 @@ async def handle_structured_response(ctx: Context, sender: str, msg: StructuredO
                 sender_id = chat_request["sender"]
                 original_message_id = chat_request["original_message_id"]
                 
-                response_content = msg.output.get("response", "Désolé, je n'ai pas pu traiter votre message.")
+                response_content = msg.output.get("response", "Sorry, I was not able to process your message.")
                 
                 # Ajouter des suggestions si disponibles
                 if msg.output.get("intent_suggestion"):
-                    response_content += f"\n\n💡 Suggestion d'intent: {msg.output['intent_suggestion']}"
+                    response_content += f"\n\n💡 Intent suggestion: {msg.output['intent_suggestion']}"
                 if msg.output.get("trading_suggestion"):
-                    response_content += f"\n📊 Suggestion trading: {msg.output['trading_suggestion']}"
+                    response_content += f"\n📊 Trading suggestion: {msg.output['trading_suggestion']}"
                 
                 # Envoyer la réponse via chat
                 chat_response = ChatResponse(
@@ -1488,7 +1488,7 @@ async def generate_smart_recommendation(ctx: Context, token_symbol: str, market_
         sentiment_score = 0
         if news_data:
             all_text = " ".join([str(article.get("title", "")) + " " + str(article.get("content", "")) for article in news_data[:5]])
-            positive_words = ["bullish", "rise", "growth", "gain", "increase", "positive", "up", "rally", "breakout", "adoption", "partnership"]
+            positive_words = ["bullish", "negative", "rise", "growth", "gain", "increase", "positive", "up", "rally", "breakout", "adoption", "partnership"]
             negative_words = ["bearish", "fall", "decline", "loss", "decrease", "negative", "down", "crash", "dump", "risk", "regulation"]
             
             positive_count = sum(1 for word in positive_words if word in all_text.lower())
@@ -1664,7 +1664,6 @@ async def generate_smart_recommendation(ctx: Context, token_symbol: str, market_
                 stop_loss = 100 * 0.88
             
         else:
-            # Token inconnu mais pas nécessairement suspect -> analyse plus nuancée
             if sentiment == "positive" and sentiment_score >= 2:
                 action = "buy"
                 confidence = 0.45  # Confiance modérée pour tokens inconnus même avec bon sentiment
@@ -1700,7 +1699,7 @@ async def generate_smart_recommendation(ctx: Context, token_symbol: str, market_
         elif sentiment_score <= -3:
             news_sentiment = "very_negative"
         elif sentiment_score <= -1:
-                       news_sentiment = "negative"
+            news_sentiment = "negative"
         else:
             news_sentiment = "neutral"
         
@@ -1793,14 +1792,14 @@ async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str, 
         
         # Adapter le prompt selon le type de token pour que Claude analyse intelligemment
         if is_suspicious or is_very_risky:
-            ctx.logger.info(f"🚨 Token de merde détecté ({token_symbol}) - SELL automatique sans Claude")
+            ctx.logger.info(f"🚨 Bad token détecté ({token_symbol}) - SELL automatique sans Claude")
             
             # Retourner directement SELL pour les shitcoins
             trading_rec = TradingRecommendation(
                 token_symbol=token_symbol,
                 recommendation="sell",
-                confidence=0.95,  # Très haute confiance pour SELL les shitcoins
-                reasoning=f"⚠️ SHITCOIN DÉTECTÉ: {token_symbol} présente des patterns suspects typiques des arnaques crypto. Vente immédiate recommandée pour éviter pertes importantes.",
+                confidence=0.95,  # Very high confidence for SELLing scam tokens
+                reasoning=f"⚠️ SCAM TOKEN DETECTED: {token_symbol} shows suspicious patterns typical of crypto scams. Immediate sell recommended to avoid significant losses.",
                 price_target=None,
                 stop_loss=None,
                 news_sentiment="very_negative",
@@ -1813,7 +1812,7 @@ async def send_trading_recommendation_to_simon(ctx: Context, token_symbol: str, 
             return {
                 "recommendation": "sell",
                 "confidence": 0.95,
-                "reasoning": f"Token suspect détecté - vente immédiate recommandée",
+                "reasoning": f"Suspicious token detected - immediate sell recommended",
                 "price_target": None,
                 "stop_loss": None,
                 "news_sentiment": "very_negative"
@@ -2221,7 +2220,7 @@ async def send_chat_message_api(ctx: Context, req: ChatRequest) -> ChatAPIRespon
         return ChatAPIResponse(
             success=False,
             message_id="",
-            response=f"Erreur: {str(e)}",
+            response=f"Error: {str(e)}",
             conversation_id=req.conversation_id or "",
             timestamp=datetime.now().isoformat()
         )

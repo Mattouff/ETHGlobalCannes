@@ -1,85 +1,85 @@
-# 🚀 Intégration ASI1.ai - IntentFi Agent
+# 🚀 ASI1.ai Integration - IntentFi Agent
 
-## 📋 Vue d'ensemble
+## 📋 Overview
 
-Ton agent IntentFi est maintenant **compatible avec ASI1.ai** ! Il peut recevoir et traiter des messages via le protocole de chat officiel de Fetch.ai et les API REST.
+Your IntentFi agent is now **compatible with ASI1.ai**! It can receive and process messages via the official Fetch.ai chat protocol and REST APIs.
 
-## 🌐 Connexion avec ASI1.ai
+## 🌐 Connecting with ASI1.ai
 
-### 1. **Via l'interface web ASI1.ai**
+### 1. **Via the ASI1.ai Web Interface**
 
-- Rends-toi sur https://asi1.ai/
-- Utilise l'adresse de ton agent : `agent1qf82uz69zk3dlw6k3y5aewlfaavcxed29a8w9rmxqsf20tgnwtx9xxdrf24`
-- Commence à chatter directement !
+- Go to https://asi1.ai/
+- Use your agent's address: `agent1qf82uz69zk3dlw6k3y5aewlfaavcxed29a8w9rmxqsf20tgnwtx9xxdrf24`
+- Start chatting directly!
 
-### 2. **Via l'API REST**
+### 2. **Via the REST API**
 
-Ton agent expose plusieurs endpoints compatibles :
+Your agent exposes several compatible endpoints:
 
 ```bash
 # Base URL (via ngrok)
 https://91fe-83-144-23-154.ngrok-free.app
 
-# Endpoints disponibles :
-POST /chat/send                    # Envoyer un message
-GET  /chat/conversations           # Lister les conversations
-GET  /chat/history/{conv_id}       # Historique d'une conversation
-GET  /chat/analytics               # Analytics et statistiques
-GET  /asi-one/metadata             # Métadonnées de l'agent
-GET  /health                       # Status de santé
+# Available endpoints:
+POST /chat/send                    # Send a message
+GET  /chat/conversations           # List conversations
+GET  /chat/history/{conv_id}       # Conversation history
+GET  /chat/analytics               # Analytics and statistics
+GET  /asi-one/metadata             # Agent metadata
+GET  /health                       # Health status
 ```
 
-## 💬 Exemples d'utilisation
+## 💬 Usage Examples
 
-### Chat via API REST
+### Chat via REST API
 
 ```bash
 curl -X POST https://91fe-83-144-23-154.ngrok-free.app/chat/send \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Recommande-moi un intent pour ETH",
-    "sender_id": "user123"
-  }'
+    -H "Content-Type: application/json" \
+    -d '{
+        "message": "Recommend me an intent for ETH",
+        "sender_id": "user123"
+    }'
 ```
 
-### Messages supportés
+### Supported Messages
 
-L'agent comprend plusieurs types de demandes :
+The agent understands several types of requests:
 
-#### 🎯 **Intents financiers**
+#### 🎯 **Financial Intents**
 
-- "Recommande-moi un intent pour ETH"
-- "Crée une stratégie DCA pour Bitcoin"
-- "Intent de gestion des risques"
-- "Stratégie prix conditionnel"
+- "Recommend me an intent for ETH"
+- "Create a DCA strategy for Bitcoin"
+- "Risk management intent"
+- "Conditional price strategy"
 
-#### 📊 **Analyses trading**
+#### 📊 **Trading Analysis**
 
-- "Analyse ETH"
-- "Acheter ou vendre BTC ?"
-- "Sentiment du marché pour SOL"
+- "Analyze ETH"
+- "Buy or sell BTC?"
+- "Market sentiment for SOL"
 - "Trading MATIC"
 
-#### ❓ **Aide et conversation**
+#### ❓ **Help and Conversation**
 
-- "aide" ou "help"
-- Questions générales sur la crypto
-- Demandes d'explications
+- "help" or "aide"
+- General crypto questions
+- Requests for explanations
 
-## 🔧 Structure des réponses
+## 🔧 Response Structure
 
-### Chat Message (Protocole officiel)
+### Chat Message (Official Protocol)
 
 ```python
 {
-  "timestamp": "2025-07-06T12:00:00Z",
-  "msg_id": "uuid4",
-  "content": [
-    {
-      "type": "text",
-      "text": "Voici ma réponse..."
-    }
-  ]
+    "timestamp": "2025-07-06T12:00:00Z",
+    "msg_id": "uuid4",
+    "content": [
+        {
+            "type": "text",
+            "text": "Here is my response..."
+        }
+    ]
 }
 ```
 
@@ -89,42 +89,42 @@ L'agent comprend plusieurs types de demandes :
 {
   "success": true,
   "message_id": "uuid4",
-  "response": "🎯 Recommandation d'intent...",
+  "response": "🎯 Intent recommendation...",
   "conversation_id": "api_conv_123",
   "timestamp": "2025-07-06T12:00:00Z"
 }
 ```
 
-## 🎯 Capacités de l'agent
+## 🎯 Agent Capabilities
 
-### **Recommandations d'intents**
+### **Intent Recommendations**
 
-- **Price-based** : Conditions basées sur le prix
-- **Time-based** : Stratégies DCA et scheduling
-- **Risk management** : Gestion des risques et stop-loss
-- **Cross-chain** : Transferts inter-chaînes avec LayerZero
+- **Price-based**: Price condition triggers
+- **Time-based**: DCA strategies and scheduling
+- **Risk management**: Risk management and stop-loss
+- **Cross-chain**: Inter-chain transfers with LayerZero
 
-### **Analyses trading**
+### **Trading Analysis**
 
-- Données de marché en temps réel (CoinGecko)
-- Analyse technique (support/résistance)
-- Sentiment des actualités
-- Recommandations buy/sell/hold
+- Real-time market data (CoinGecko)
+- Technical analysis (support/resistance)
+- News sentiment
+- Buy/sell/hold recommendations
 
-### **Tokens supportés**
+### **Supported Tokens**
 
-ETH, BTC, USDC, USDT, SOL, ADA, MATIC, AVAX, DOT, LINK, UNI, ARB, OP, FLOW, et plus...
+ETH, BTC, USDC, USDT, SOL, ADA, MATIC, AVAX, DOT, LINK, UNI, ARB, OP, FLOW, and more...
 
-## 🔗 Configuration technique
+## 🔗 Technical Configuration
 
-### Protocoles activés
+### Enabled Protocols
 
-- ✅ **Protocole de chat officiel Fetch.ai** (si uagents_core disponible)
-- ✅ **IntentFi Protocol** (recommandations custom)
+- ✅ **Official Fetch.ai chat protocol** (if uagents_core available)
+- ✅ **IntentFi Protocol** (custom recommendations)
 - ✅ **Simon Communication** (trading analysis)
-- ✅ **API REST** (endpoints web)
+- ✅ **REST API** (web endpoints)
 
-### Endpoints publics
+### Public Endpoints
 
 ```
 Agent Address: agent1qf82uz69zk3dlw6k3y5aewlfaavcxed29a8w9rmxqsf20tgnwtx9xxdrf24
@@ -132,40 +132,40 @@ Public URL: https://91fe-83-144-23-154.ngrok-free.app
 Port: 8000
 ```
 
-## 🚨 Dépannage
+## 🚨 Troubleshooting
 
-### Si le chat ne fonctionne pas :
+### If chat is not working:
 
-1. **Vérifier ngrok** : L'URL doit être accessible
-2. **Protocole** : Installer `uagents_core` pour le protocole officiel
-3. **Agent en cours** : S'assurer que l'agent tourne sur le port 8000
+1. **Check ngrok**: The URL must be accessible
+2. **Protocol**: Install `uagents_core` for the official protocol
+3. **Agent running**: Make sure the agent is running on port 8000
 
-### Logs utiles :
+### Useful logs:
 
 ```bash
-# Démarrer l'agent et vérifier les logs
+# Start the agent and check logs
 python intellect.py
 
-# Rechercher ces messages :
-✅ Protocole de chat officiel initialisé avec succès!
-🔗 INTÉGRATION ASI1.AI PRÊTE! 🔗
+# Look for these messages:
+✅ Official chat protocol initialized successfully!
+🔗 ASI1.AI INTEGRATION READY! 🔗
 ```
 
-## 🎉 Test rapide
+## 🎉 Quick Test
 
-### Via curl :
+### Via curl:
 
 ```bash
 curl https://91fe-83-144-23-154.ngrok-free.app/health
 ```
 
-### Via ASI1.ai :
+### Via ASI1.ai:
 
-1. Va sur https://asi1.ai/
-2. Connecte-toi avec l'adresse de l'agent
-3. Tape : "Hello, recommande-moi un intent ETH"
-4. 🎯 Attends la réponse personnalisée !
+1. Go to https://asi1.ai/
+2. Connect with the agent address
+3. Type: "Hello, recommend me an ETH intent"
+4. 🎯 Wait for the personalized response!
 
 ---
 
-**🚀 Ton agent IntentFi est maintenant prêt à communiquer avec le monde via ASI1.ai !**
+**🚀 Your IntentFi agent is now ready to communicate with the world via ASI1.ai!**
