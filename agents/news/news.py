@@ -263,95 +263,36 @@ async def fetch_and_display_news(ctx: Context):
 # Handler pour répondre aux requêtes de news
 @agent.on_message(model=TextMessage)
 async def handle_news_request(ctx: Context, sender: str, msg: TextMessage):
-    """Répond aux requêtes de news avec les dernières actualités"""
-    message_content = msg.message.lower()
-    
-    if "news" in message_content or "actualités" in message_content:
-        ctx.logger.info(f"Requête de news reçue de {sender}: {msg.message}")
-        
-        # Extraire une requête de recherche si elle est spécifiée
-        query = None
-        if "search:" in message_content:
-            # Format: "news search: bitcoin" ou "actualités search: technology"
-            query = msg.message.split("search:")[-1].strip()
-            ctx.logger.info(f"Recherche spécifique demandée: {query}")
-        elif any(keyword in message_content for keyword in ["bitcoin", "crypto", "ethereum", "blockchain"]):
-            # Détection automatique de mots-clés crypto avec impact sur les cours
-            query = "(cryptocurrency OR bitcoin OR ethereum OR blockchain) AND (regulation OR SEC OR ETF OR adoption OR institutional OR ban OR legal OR government OR fed OR inflation OR tether OR binance OR coinbase OR grayscale OR blackrock OR microstrategy OR Trump OR Musk)"
-        elif any(keyword in message_content for keyword in ["ai", "intelligence", "technology"]):
-            # Détection automatique de mots-clés tech
-            query = "AI OR artificial intelligence OR technology"
-        
-        raw_news = fetch_top_news(query=query)
-        news_data = []
-        
-        for article in raw_news:
-            news_item = NewsData(
-                title=article.get("title", ""),
-                description=article.get("description", ""),
-                url=article.get("url", ""),
-                source=article.get("source", ""),
-                published_at=article.get("published_at", "")
-            )
-            news_data.append(news_item)
-        
-        news_response = NewsResponse(
-            news=news_data,
-            total_articles=len(news_data),
-            timestamp=datetime.now().isoformat()
+    """Répond uniquement avec les dernières actualités sportives"""
+    ctx.logger.info(f"Sport news request received from {sender}: {msg.message}")
+    sport_query = "sport OR sports OR football OR soccer OR nba OR tennis OR olympics OR athlete OR match OR game OR tournament OR world cup OR euro"
+    raw_news = fetch_top_news(query=sport_query)
+    news_data = []
+    for article in raw_news:
+        news_item = NewsData(
+            title=article.get("title", ""),
+            description=article.get("description", ""),
+            url=article.get("url", ""),
+            source=article.get("source", ""),
+            published_at=article.get("published_at", "")
         )
-        
-        # Envoyer la réponse
-        await ctx.send(sender, news_response)
+        news_data.append(news_item)
+    news_response = NewsResponse(
+        news=news_data,
+        total_articles=len(news_data),
+        timestamp=datetime.now().isoformat()
+    )
+    await ctx.send(sender, news_response)
 
 # Endpoint REST pour récupérer les news (pour le frontend)
 @agent.on_rest_post("/news", NewsRequest, NewsResponse)
 async def get_news_rest(ctx: Context, req: NewsRequest) -> NewsResponse:
-    """Endpoint REST pour récupérer les news depuis le frontend"""
-    ctx.logger.info(f"🌐 API Call - Requête news via REST")
-    ctx.logger.info(f"🔍 Query: {req.query}, Type: {req.search_type}")
-    
+    """Endpoint REST pour récupérer uniquement les news sportives"""
+    ctx.logger.info(f"🌐 API Call - Sport news only via REST")
+    sport_query = "sport OR sports OR football OR soccer OR nba OR tennis OR olympics OR athlete OR match OR game OR tournament OR world cup OR euro"
     try:
-        # Nettoyer le cache de temps en temps
         clear_old_cache()
-        
-        # Déterminer la requête basée sur les paramètres
-        query = None
-        
-        if req.query:
-            # Requête spécifique fournie
-            query = req.query
-        elif req.search_type == "crypto":
-            # Requête crypto spécialisée pour nos tokens cibles
-            query = "(ethereum OR ETH OR arbitrum OR ARB OR layer2 OR L2 OR flow OR \"flow blockchain\" OR dapper OR optimism OR OP OR optimistic) AND (price OR regulation OR SEC OR ETF OR adoption OR institutional OR DeFi OR NFT OR gaming OR upgrade OR update OR partnership OR integration OR development OR mainnet OR testnet)"
-        elif req.search_type == "tech":
-            # Requête tech
-            query = "AI OR artificial intelligence OR technology"
-        # Si search_type == "general", query reste None pour les actualités générales
-        
-        # Récupérer les news avec filtrage pour éviter les doublons
-        raw_news = fetch_top_news(query=query, filter_displayed=True)
-        
-        # Appliquer le filtrage par tokens cibles si c'est une recherche crypto
-        if req.search_type == "crypto":
-            raw_news = filter_news_by_target_tokens(raw_news)
-        
-        # Si pas de nouvelles actualités, retourner "No new information"
-        if not raw_news or (len(raw_news) == 1 and raw_news[0].get("title", "").startswith("ERROR")):
-            # Retourner "No new information" sans logger (évite le spam dans les logs JSON)
-            return NewsResponse(
-                news=[NewsData(
-                    title="No new information for target tokens",
-                    description="No new articles found for ARBITRUM/ETH/FLOW/OPTI since last request",
-                    url="",
-                    source="System",
-                    published_at=datetime.now().isoformat()
-                )],
-                total_articles=0,
-                timestamp=datetime.now().isoformat()
-            )
-        
-        # Formater les données (seulement les nouvelles)
+        raw_news = fetch_top_news(query=sport_query, filter_displayed=True)
         news_data = []
         for article in raw_news:
             news_item = NewsData(
@@ -362,20 +303,15 @@ async def get_news_rest(ctx: Context, req: NewsRequest) -> NewsResponse:
                 published_at=article.get("published_at", "")
             )
             news_data.append(news_item)
-        
-        # Créer la réponse finale
         news_response = NewsResponse(
             news=news_data,
             total_articles=len(news_data),
             timestamp=datetime.now().isoformat()
         )
-        
-        ctx.logger.info(f"✅ {len(news_data)} nouvelles actualités retournées via REST API")
+        ctx.logger.info(f"✅ {len(news_data)} sport news returned via REST API")
         return news_response
-        
     except Exception as e:
-        ctx.logger.error(f"❌ Erreur lors de la récupération REST: {e}")
-        # Retourner des données fallback
+        ctx.logger.error(f"❌ Error during REST sport news fetch: {e}")
         fallback_news = get_mock_news()
         news_data = []
         for article in fallback_news:
@@ -386,7 +322,6 @@ async def get_news_rest(ctx: Context, req: NewsRequest) -> NewsResponse:
                 source=article.get("source", ""),
                 published_at=article.get("published_at", "")
             ))
-        
         return NewsResponse(
             news=news_data,
             total_articles=len(news_data),

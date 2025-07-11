@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -15,19 +14,20 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { config } from "@/config/env";
 
-const { width } = Dimensions.get("window");
-
 interface NewsArticle {
   title: string;
   description: string;
   source: string;
   url: string;
   timestamp: string;
+  review?: string;
+  rate?: "bullish" | "bearish" | "neutral";
 }
 
 interface NewsResponse {
   articles: NewsArticle[];
   total_articles: number;
+  analyzed_articles?: number;
   timestamp: string;
   status: string;
 }
@@ -35,6 +35,7 @@ interface NewsResponse {
 export default function NewsScreen() {
   const { isConnected } = useAccount();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [newsData, setNewsData] = useState<NewsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +44,8 @@ export default function NewsScreen() {
   const fetchNews = async () => {
     try {
       setError(null);
-      const newsUrl = `${config.API_INTELLECT_AGENT_URL}/getJson`;
-      console.log("Fetching news from:", newsUrl);
+      const newsUrl = `${config.API_INTELLECT_AGENT_URL}/getAnalyzed`;
+      console.log("Fetching analyzed news from:", newsUrl);
       const response = await fetch(newsUrl);
 
       if (!response.ok) {
@@ -60,9 +61,11 @@ export default function NewsScreen() {
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
         setArticles(sortedArticles);
+        setNewsData(data);
       } else {
         setError(`Failed to fetch news: ${data.status}`);
         setArticles([]);
+        setNewsData(null);
       }
     } catch (err) {
       const errorMessage =
@@ -116,6 +119,45 @@ export default function NewsScreen() {
     setExpandedArticle(expandedArticle === index ? null : index);
   };
 
+  const getRatingEmoji = (rate?: string) => {
+    switch (rate) {
+      case "bullish":
+        return "🚀";
+      case "bearish":
+        return "📉";
+      case "neutral":
+        return "⚖️";
+      default:
+        return "📰";
+    }
+  };
+
+  const getRatingColor = (rate?: string) => {
+    switch (rate) {
+      case "bullish":
+        return "#22c55e"; // green
+      case "bearish":
+        return "#ef4444"; // red
+      case "neutral":
+        return "#6b7280"; // gray
+      default:
+        return "#6366f1"; // default blue
+    }
+  };
+
+  const getRatingText = (rate?: string) => {
+    switch (rate) {
+      case "bullish":
+        return "Bullish";
+      case "bearish":
+        return "Bearish";
+      case "neutral":
+        return "Neutral";
+      default:
+        return "Not analyzed";
+    }
+  };
+
   if (!isConnected) {
     return (
       <SafeAreaView style={styles.container}>
@@ -163,6 +205,11 @@ export default function NewsScreen() {
               <ThemedText style={styles.statsText}>
                 📊 {articles.length} articles available
               </ThemedText>
+              {newsData?.analyzed_articles !== undefined && (
+                <ThemedText style={styles.statsSubText}>
+                  🤖 {newsData.analyzed_articles} analyzed by AI
+                </ThemedText>
+              )}
             </ThemedView>
 
             <ThemedView style={styles.articlesList}>
@@ -177,6 +224,24 @@ export default function NewsScreen() {
                     <ThemedText style={styles.articleTitle} numberOfLines={2}>
                       {article.title}
                     </ThemedText>
+
+                    {/* Rating Badge */}
+                    {article.rate && (
+                      <ThemedView
+                        style={[
+                          styles.ratingBadge,
+                          { backgroundColor: getRatingColor(article.rate) },
+                        ]}
+                      >
+                        <ThemedText style={styles.ratingEmoji}>
+                          {getRatingEmoji(article.rate)}
+                        </ThemedText>
+                        <ThemedText style={styles.ratingText}>
+                          {getRatingText(article.rate)}
+                        </ThemedText>
+                      </ThemedView>
+                    )}
+
                     <ThemedView style={styles.articleMeta}>
                       <ThemedText style={styles.articleSource}>
                         📰 {article.source}
@@ -192,6 +257,18 @@ export default function NewsScreen() {
                       <ThemedText style={styles.articleDescription}>
                         {article.description}
                       </ThemedText>
+
+                      {/* AI Analysis Review */}
+                      {article.review && (
+                        <ThemedView style={styles.reviewContainer}>
+                          <ThemedText style={styles.reviewLabel}>
+                            🤖 AI Analysis:
+                          </ThemedText>
+                          <ThemedText style={styles.reviewText}>
+                            {article.review}
+                          </ThemedText>
+                        </ThemedView>
+                      )}
 
                       <ThemedView style={styles.linkContainer}>
                         <ExternalLink
@@ -334,6 +411,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
     backgroundColor: "rgba(0, 0, 0, 0)",
   },
+  statsSubText: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.5)",
+    textAlign: "center",
+    backgroundColor: "rgba(0, 0, 0, 0)",
+    marginTop: 4,
+  },
   articlesList: {
     gap: 16,
     backgroundColor: "rgba(0, 0, 0, 0)",
@@ -431,5 +515,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.5)",
     textAlign: "center",
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginVertical: 8,
+    alignSelf: "flex-start",
+  },
+  ratingEmoji: {
+    fontSize: 12,
+    marginRight: 4,
+    color: "#fff",
+  },
+  ratingText: {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: "600",
+  },
+  reviewContainer: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: "#6366f1",
+  },
+  reviewLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6366f1",
+    marginBottom: 8,
+  },
+  reviewText: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    lineHeight: 20,
   },
 });
